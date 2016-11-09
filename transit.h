@@ -14,7 +14,7 @@ extern void tr_log(int level, const char *fmt, ...);
 
 struct tr_app {
     struct event_base *base;
-    struct event ev_sock;
+    struct event ev_udp;
     int sock;
     int debug;
     int isdaemon;

@@ -22,7 +22,8 @@ struct tr_app trapp = {0};
 /*
  * 宏定义
  */
-#define APP "transit"
+#define APP      "transit"
+#define APP_PORT     6666
 
 /*
  * 日志
@@ -63,6 +64,17 @@ void ftp_opt_cfg(FTP_OPT *ftp_opt,
     ftp_opt->file = filename;
 }
 
+void recv_cb(evutil_socket_t fd, short what, void *arg)
+{
+    struct sockaddr_in addr;
+    int addr_len;
+    int msg_len;
+    unsigned char msg[1024];
+    msg_len = recvfrom(fd, msg, sizeof(msg), 0, &addr, &addr_len);
+    printHexBuffer(msg, msg_len);
+
+}
+
 /*
  * 主函数
  */
@@ -90,7 +102,7 @@ int main(int argc, char **argv)
         default:
             printf("Usage: transit \n");
             printf("\t -h: ftpserver's ip or hostname\n");
-            printf("\t -u: ftpserver's user name and password, like 'root:123456'\n");
+            printf("\t -u: ftpserver's user name and password, 'root:123456'\n");
             printf("\t -d: run in daemon\n");
             printf("\t -x: enable log\n");
             exit(1);
@@ -99,6 +111,10 @@ int main(int argc, char **argv)
 
     openlog(APP, LOG_PID, LOG_DAEMON);
 
+    udpserver_init(&trapp.sock, APP_PORT);
+    trapp.ev_udp = event_new(trapp.base, trapp.sock, EV_PERSIST | EV_READ,
+                             recv_cb, NULL);
+    event_add(trapp.ev_udp, NULL);
 
     /* FTP_OPT ftp_option; */
     /* char *dir = "/a/b/"; */
