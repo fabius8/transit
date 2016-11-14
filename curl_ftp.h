@@ -16,9 +16,11 @@ typedef struct FTP_OPT {
 }FTP_OPT;
 
 /* upload file to ftp server */
-FTP_STATE ftp_upload(const FTP_OPT ftp_option);
+extern FTP_STATE ftp_upload(const FTP_OPT ftp_option);
 
 /* download file from ftp server */
-FTP_STATE ftp_download(const FTP_OPT ftp_option);
+extern FTP_STATE ftp_download(const FTP_OPT ftp_option);
+
+extern FTP_STATE ftp_create_dirs(const FTP_OPT ftp_option);
 
 #endif

@@ -3,7 +3,7 @@ obj-app = transit
 srcs = $(wildcard *.c)
 obj-dep += $(patsubst %.c, %.o, $(srcs))
 
-CFLAGS  += -I. -I/usr/include/curl
+CFLAGS  += -I. -I/usr/include/curl -g
 LDFLAGS +=
 
 all: build

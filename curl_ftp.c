@@ -41,6 +41,25 @@ void curl_set_upload_opt(CURL *curl,
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 }
 
+void curl_set_create_dir_opt(CURL *curl,
+                         const char *url,
+                         const char *user_key)
+{
+    struct curl_slist *headerlist = NULL;
+    //headerlist = curl_slist_append(headerlist, "CWD /aaa/");
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_USERPWD, user_key);
+    //curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+    //curl_easy_setopt(curl, CURLOPT_POSTQUOTE, headerlist);
+    curl_easy_setopt(curl, CURLOPT_FTP_CREATE_MISSING_DIRS, 1);
+
+    if (trapp.debug)
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+}
+
+
+
 void curl_set_download_opt(CURL *curl,
                            const char *url,
                            const char *user_key,
@@ -71,13 +90,30 @@ CURLcode curl_perform(CURL *curl)
     return ret;
 }
 
+FTP_STATE ftp_create_dirs(const FTP_OPT ftp_option)
+{
+    FTP_STATE state;
+    CURL *curl;
+
+    curl = curl_init();
+    curl_set_create_dir_opt(curl, ftp_option.url, ftp_option.user_key);
+    if(CURLE_OK == curl_perform(curl))
+        state = FTP_UPLOAD_SUCCESS;
+    else
+        state = FTP_UPLOAD_FAILED;
+
+    curl_exit(curl);
+    return state;
+}
+
+
 FTP_STATE ftp_upload(const FTP_OPT ftp_option)
 {
     FTP_STATE state;
     CURL *curl;
     FILE *fp = fopen(ftp_option.file, "r");
     if(NULL == fp) {
-        fprintf(stderr, "Open file %s failed at %s:%d\n", ftp_option.file,
+        tr_log(LOG_ERR, "Open file %s failed at %s:%d\n", ftp_option.file,
                 __FILE__, __LINE__);
         return FTP_UPLOAD_FAILED;
     }

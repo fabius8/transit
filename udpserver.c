@@ -7,32 +7,30 @@ void printHexBuffer(void *buf, unsigned long len)
     unsigned char buffer[1024] = {0};
     unsigned char *tmp;
     tmp = buffer;
-    if (NULL == buf || 0 == len)
-    {
+    if (NULL == buf || 0 == len) {
         return;
     }
     tr_log(LOG_INFO, "len = %d", len);
 
-    for (i = 0; i < len; i ++)
-    {
+    for (i = 0; i < len; i ++) {
         sprintf(tmp, "%02x ", bytes[i]);
         tmp += 3;
-        if((i + 1) % 8 == 0)
-        {
+        if((i + 1) % 8 == 0) {
             sprintf(tmp, "\n");
             tmp += 1;
         }
     }
-    tr_log(LOG_INFO, "\n%s", buffer);
+    tr_log(LOG_INFO, " %s", buffer);
 }
 
 
 void udpserver_init(int *sock, unsigned short port)
 {
+    tr_log(LOG_INFO, "udp server init...");
     *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if(*sock < 0) {
         tr_log(LOG_ERR, "cannot open udp socket!");
-        return;
+        exit(1);
     }
     struct sockaddr_in serveraddr;
     memset(&serveraddr, 0, sizeof(serveraddr));
@@ -42,6 +40,7 @@ void udpserver_init(int *sock, unsigned short port)
 
     if (bind(*sock, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0) {
         tr_log(LOG_ERR, "cannot open udp socket!");
+        exit(1);
     }
 }
 
