@@ -4,7 +4,7 @@ void printHexBuffer(void *buf, unsigned long len)
 {
     unsigned long i;
     unsigned char *bytes = (unsigned char *)buf;
-    unsigned char buffer[1024] = {0};
+    unsigned char buffer[8192] = {0};
     unsigned char *tmp;
     tmp = buffer;
     if (NULL == buf || 0 == len) {

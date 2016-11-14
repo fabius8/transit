@@ -18,6 +18,7 @@ extern struct tr_app trapp;
 extern void tr_log(int level, const char *fmt, ...);
 extern void printHexBuffer(void *buf, unsigned long len);
 extern void udpserver_init(int *sock, unsigned short port);
+extern const char *log_type[];
 
 struct tr_app {
     struct event_base *base;

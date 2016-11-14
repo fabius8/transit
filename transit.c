@@ -19,7 +19,27 @@ struct tr_app trapp = {0};
  */
 #define APP                     "transit"
 #define APP_PORT                6666
-#define CREATE_DIR_TIME         5
+#define TIME_INTERVAL           5
+#define MAX_LOG_TYPE_NUM        15
+#define SAVE_FILE_DIR           "/tmp/"
+
+const char *log_type[] = {
+    "WLRZ",
+    "FJGJ",
+    "JSTX",
+    "XWRZ",
+    "SJRZ",
+    "PTNR",
+    "SGJZ",
+    "CSZL",
+    "CSZT",
+    "SBZL",
+    "JSJZT",
+    "SBGJ",
+    "RZSJ",
+    "SJTZ",
+    "PNFJ"
+};
 
 /*
  * 日志
@@ -60,7 +80,11 @@ void ftp_opt_cfg(FTP_OPT *ftp_opt,
     ftp_opt->file = filename;
 }
 
-void create_dir_cb(evutil_socket_t fd, short event, void *arg)
+/*
+ * FTP创建目录
+ *
+ */
+void create_dir()
 {
     FTP_OPT ftp_option;
     time_t t = time(NULL);
@@ -70,7 +94,8 @@ void create_dir_cb(evutil_socket_t fd, short event, void *arg)
     t = time(NULL);
     tm = *localtime(&t);
 
-    sprintf(trapp.current_dir, "/%d%02d%02d/%02d/%02d/",
+    sprintf(trapp.current_dir, "/%s/%d%02d%02d/%02d/%02d/",
+            log_type[0],
             tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
             tm.tm_hour, tm.tm_min);
     ftp_opt_cfg(&ftp_option,
@@ -82,18 +107,71 @@ void create_dir_cb(evutil_socket_t fd, short event, void *arg)
         tr_log(LOG_INFO, "Upload failed.\n");
 }
 
+void timer_cb(evutil_socket_t fd, short event, void *arg)
+{
+}
+
+/*
+ * 获取文件指针
+ */
+void get_fp(FILE **fp, const char *filename)
+{
+    char fullpath[256] = {0};
+    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+
+    if (!*fp) {
+        *fp = fopen(fullpath, "a+");
+        if (!*fp) {
+            tr_log(LOG_ERR, "file can't open");
+            exit(1);
+        }
+    }
+}
+
+/*
+ * 文件头部插入"["
+ */
+void insert_file_head(FILE *fp, const char *filename)
+{
+    if (fp) {
+        char buf [] = "[";
+        fwrite(buf, 1, sizeof(buf), fp);
+    }
+}
+
+/*
+ * 清空文件
+ */
+void clear_contents_file(FILE *fp, const char *filename)
+{
+    char fullpath[256] = {0};
+    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+
+    if (fp) {
+        fclose(fp);
+        fclose(fopen(fullpath, "w"));
+    } else {
+        fclose(fopen(fullpath, "w"));
+    }
+}
+
 void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 {
     tr_log(LOG_INFO, "recv ap msg ...");
     struct sockaddr_in addr;
     int addr_len;
     int msg_len;
-    unsigned char msg[1024];
+    unsigned char msg[4096];
 
     msg_len = recvfrom(fd, msg, sizeof(msg), 0,
                        (struct sockaddr *)&addr, &addr_len);
     printHexBuffer(msg, msg_len);
 
+    FILE *fp = NULL;
+    get_fp(&fp, log_type[0]);
+    const char *buf = "{ test }";
+    fwrite(buf, 1, sizeof(buf), fp);
+    fclose(fp);
     /* parse to json */
     /* write to file */
 }
@@ -162,13 +240,13 @@ int main(int argc, char **argv)
                              apmsg_recv_cb, NULL);
     event_add(trapp.ev_udp, NULL);
 
-    /* ftp create dir in 5 minutes */
+    /* Every 5 minutes */
     struct event *ev_timeout;
     struct timeval tv;
     ev_timeout = event_new(trapp.base, -1, EV_PERSIST | EV_TIMEOUT,
-                           create_dir_cb, NULL);
+                           timer_cb, NULL);
     evutil_timerclear(&tv);
-    tv.tv_sec = CREATE_DIR_TIME;
+    tv.tv_sec = TIME_INTERVAL;
     event_add(ev_timeout, &tv);
 
     event_base_dispatch(trapp.base);
