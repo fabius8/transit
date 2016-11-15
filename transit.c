@@ -24,21 +24,9 @@ struct tr_app trapp = {0};
 #define SAVE_FILE_DIR           "/tmp/"
 
 const char *log_type[] = {
-    "WLRZ",
-    "FJGJ",
-    "JSTX",
-    "XWRZ",
-    "SJRZ",
-    "PTNR",
-    "SGJZ",
-    "CSZL",
-    "CSZT",
-    "SBZL",
-    "JSJZT",
-    "SBGJ",
-    "RZSJ",
-    "SJTZ",
-    "PNFJ"
+    "WLRZ", "FJGJ", "JSTX", "XWRZ", "SJRZ",
+    "PTNR", "SGJZ", "CSZL", "CSZT", "SBZL",
+    "JSJZT", "SBGJ", "RZSJ", "SJTZ", "PNFJ"
 };
 
 /*
@@ -131,29 +119,66 @@ void get_fp(FILE **fp, const char *filename)
 /*
  * 文件头部插入"["
  */
-void insert_file_head(FILE *fp, const char *filename)
+void insert_file_head(const char *filename)
 {
-    if (fp) {
-        char buf [] = "[";
+    char fullpath[256] = {0};
+    char buf [] = "[";
+    FILE *fp;
+
+    if (filename) {
+        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+        fp = fopen(fullpath, "a+");
         fwrite(buf, 1, sizeof(buf), fp);
+        fclose(fp);
     }
 }
 
 /*
  * 清空文件
  */
-void clear_contents_file(FILE *fp, const char *filename)
+void clear_contents_file(const char *filename)
 {
     char fullpath[256] = {0};
-    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
-
-    if (fp) {
-        fclose(fp);
-        fclose(fopen(fullpath, "w"));
-    } else {
+    if (filename) {
+        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
         fclose(fopen(fullpath, "w"));
     }
 }
+
+/*
+ * 文件尾部插入"]"
+ */
+void insert_file_end(const char *filename)
+{
+    char fullpath[256] = {0};
+    char buf [] = "]";
+    FILE *fp;
+
+    if (filename) {
+        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+        fp = fopen(fullpath, "a+");
+        fwrite(buf, 1, sizeof(buf), fp);
+        fclose(fp);
+    }
+}
+
+/*
+ * 文件插入buffer
+ */
+void insert_file_end(const char *filename, char *buffer)
+{
+    char fullpath[256] = {0};
+    FILE *fp;
+
+    if (filename && buffer) {
+        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+        fp = fopen(fullpath, "a+");
+        fwrite(buffer, 1, strlen(buffer), fp);
+        fclose(fp);
+    }
+}
+
+
 
 void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 {
