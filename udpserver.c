@@ -27,6 +27,7 @@ void printHexBuffer(void *buf, unsigned long len)
 void udpserver_init(int *sock, unsigned short port)
 {
     tr_log(LOG_INFO, "udp server init...");
+
     *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if(*sock < 0) {
         tr_log(LOG_ERR, "cannot open udp socket!");

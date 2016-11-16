@@ -1,9 +1,10 @@
 LDLIBS = -lcurl -lssl -lcrypto -lz -lidn -lrt -levent
 obj-app = transit
 srcs = $(wildcard *.c)
+srcs += $(wildcard iniparser/*.c)
 obj-dep += $(patsubst %.c, %.o, $(srcs))
 
-CFLAGS  += -I. -I/usr/include/curl -g
+CFLAGS  += -I. -I/iniparser -I/usr/include/curl -g
 LDFLAGS +=
 
 all: build

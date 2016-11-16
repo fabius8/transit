@@ -1,24 +1,27 @@
 #ifndef _TRANSIT_H
 #define _TRANSIT_H
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
-#include <time.h>
 
 #include "event.h"
 #include "curl_ftp.h"
+#include "iniparser/iniparser.h"
 
-extern void skeleton_daemon();
 extern struct tr_app trapp;
+extern const char *log_type[];
+extern void skeleton_daemon();
 extern void tr_log(int level, const char *fmt, ...);
 extern void printHexBuffer(void *buf, unsigned long len);
 extern void udpserver_init(int *sock, unsigned short port);
-extern const char *log_type[];
 
 struct tr_app {
     struct event_base *base;
@@ -27,8 +30,14 @@ struct tr_app {
     int debug;
     int isdaemon;
     char current_dir[256];
+    char *filecfg;
     char *usr_key;
     char *ftp_url;
+    struct {
+        char dataAcqSysType[3];
+        char dataGenIden[6];
+        char vendorOrgCode[9];
+    } cfg;
 };
 
 struct tr_feature_collection {

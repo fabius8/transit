@@ -6,7 +6,6 @@
  * Copyright 2016, GBCOM, Inc. All Rights Reserved
  * See http://
  */
-
 #include "transit.h"
 
 /*
@@ -19,9 +18,10 @@ struct tr_app trapp = {0};
  */
 #define APP                     "transit"
 #define APP_PORT                6666
-#define TIME_INTERVAL           5
+#define TIME_INTERVAL           10
 #define MAX_LOG_TYPE_NUM        15
 #define SAVE_FILE_DIR           "/tmp/"
+#define create_file(x) clear_file_buffer(x)
 
 const char *log_type[] = {
     "WLRZ", "FJGJ", "JSTX", "XWRZ", "SJRZ",
@@ -48,97 +48,118 @@ void tr_log(int level, const char *fmt, ...)
 }
 
 /*
- * ftp配置
+ * ftp参数配置
  */
 void ftp_opt_cfg(FTP_OPT *ftp_opt,
                  char *ftpserver,
                  char *usrPwd,
                  char *dir,
-                 char *filename)
+                 char *uploadName,
+                 char *orgName)
 {
     if (!ftp_opt)
         return;
-    sprintf(ftp_opt->url, "%s%s%s%s", "ftp://", ftpserver, dir, filename);
+    sprintf(ftp_opt->url, "%s%s%s%s", "ftp://", ftpserver, dir, uploadName);
     tr_log(LOG_INFO, "url: %s\n", ftp_opt->url);
 
     if (!usrPwd)
         ftp_opt->user_key = "anonymous:anonymous";
     else
         ftp_opt->user_key = usrPwd;
-    ftp_opt->file = filename;
+    ftp_opt->file = orgName;
 }
 
 /*
- * FTP创建目录
- *
+ * 初始化读取配置
  */
-void create_dir()
+void readcfg(char *filecfg)
 {
-    FTP_OPT ftp_option;
-    time_t t = time(NULL);
-    char *filename = "";
-    struct tm tm;
+    sprintf(trapp.cfg.dataAcqSysType, "%.3s", "123");
+    sprintf(trapp.cfg.dataGenIden, "%.6s", "666666");
+    sprintf(trapp.cfg.vendorOrgCode, "%.9s", "123456789");
+
+    dictionary *dict = iniparser_load(filecfg);
+    if (dict == NULL) {
+        tr_log(LOG_ERR, "cannot parse file: %s\n", dict);
+        return ;
+    }
+
+    iniparser_dump(dict, stderr);
+
+    iniparser_freedict(dict);
+}
+
+/*
+ * 文件命名
+ * example: 20150605093157706_123_440303_723005104_002.log
+ */
+void createUploadFilename(char *filename, char *dataAcqSysType,
+                          char *dataGenIden, char *vendorOrgCode,
+                          char *logType, char *suffix)
+{
+    time_t t;
+    struct tm *timeinfo;
+    int random;
+
+    if (!filename)
+        return;
 
     t = time(NULL);
-    tm = *localtime(&t);
+    timeinfo = localtime(&t);
 
-    sprintf(trapp.current_dir, "/%s/%d%02d%02d/%02d/%02d/",
-            log_type[0],
-            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-            tm.tm_hour, tm.tm_min);
-    ftp_opt_cfg(&ftp_option,
-                trapp.ftp_url, trapp.usr_key, trapp.current_dir, filename);
+    srand((unsigned)time(&t));
+    random = rand() % 1000;
+    sprintf(filename,
+            "%d%02d%02d"
+            "%02d%02d%02d%03d"
+            "_%.3s_%.6s_%.9s"
+            "_%.3s.%s",
+            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
+            timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, random,
+            dataAcqSysType, dataGenIden, vendorOrgCode,
+            logType, suffix);
+}
 
-    if (FTP_UPLOAD_SUCCESS == ftp_create_dirs(ftp_option))
+/*
+ * FTP上传文件
+ */
+void tr_ftp_upload(const char *orgName, char *uploadName, const char *logType,
+                   char *ftp_url, char *usr_key)
+{
+    char fullpath[256] = {0};
+    char dir[256] = {0};
+    FTP_OPT ftp_option;
+    time_t t;
+    struct tm *timeinfo;
+
+    t = time(NULL);
+    timeinfo = localtime(&t);
+
+    sprintf(dir,
+            "/%s/"
+            "%d%02d%02d/"
+            "%02d/%02d/",
+            logType,
+            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
+            timeinfo->tm_hour, timeinfo->tm_min);
+
+    sprintf(fullpath, SAVE_FILE_DIR"%s", orgName);
+
+    ftp_opt_cfg(&ftp_option, ftp_url, usr_key, dir, uploadName, fullpath);
+
+    if (FTP_UPLOAD_SUCCESS == ftp_upload(ftp_option))
         tr_log(LOG_INFO, "Upload success.\n");
     else
         tr_log(LOG_INFO, "Upload failed.\n");
 }
 
-void timer_cb(evutil_socket_t fd, short event, void *arg)
-{
-}
-
-/*
- * 获取文件指针
- */
-void get_fp(FILE **fp, const char *filename)
-{
-    char fullpath[256] = {0};
-    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
-
-    if (!*fp) {
-        *fp = fopen(fullpath, "a+");
-        if (!*fp) {
-            tr_log(LOG_ERR, "file can't open");
-            exit(1);
-        }
-    }
-}
-
-/*
- * 文件头部插入"["
- */
-void insert_file_head(const char *filename)
-{
-    char fullpath[256] = {0};
-    char buf [] = "[";
-    FILE *fp;
-
-    if (filename) {
-        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
-        fp = fopen(fullpath, "a+");
-        fwrite(buf, 1, sizeof(buf), fp);
-        fclose(fp);
-    }
-}
-
 /*
  * 清空文件
  */
-void clear_contents_file(const char *filename)
+void clear_file_buffer(const char *filename)
 {
     char fullpath[256] = {0};
+
     if (filename) {
         sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
         fclose(fopen(fullpath, "w"));
@@ -146,26 +167,9 @@ void clear_contents_file(const char *filename)
 }
 
 /*
- * 文件尾部插入"]"
- */
-void insert_file_end(const char *filename)
-{
-    char fullpath[256] = {0};
-    char buf [] = "]";
-    FILE *fp;
-
-    if (filename) {
-        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
-        fp = fopen(fullpath, "a+");
-        fwrite(buf, 1, sizeof(buf), fp);
-        fclose(fp);
-    }
-}
-
-/*
  * 文件插入buffer
  */
-void insert_file_end(const char *filename, char *buffer)
+void insert_file_buffer(const char *filename, char *buffer)
 {
     char fullpath[256] = {0};
     FILE *fp;
@@ -178,11 +182,52 @@ void insert_file_end(const char *filename, char *buffer)
     }
 }
 
+/*
+ * check file is empty or not
+ */
+int isEmpty(const char *filename)
+{
+    char fullpath[256] = {0};
+    struct stat st;
 
+    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+    if (stat(fullpath, &st) != 0) {
+        return 1;
+    }
+    if (st.st_size)
+        return 0;
+    else
+        return 1;
+}
+
+void timer_cb(evutil_socket_t fd, short event, void *arg)
+{
+    char uploadName[256] = {0};
+    tr_log(LOG_INFO, "Time up! Wait next %d secs", TIME_INTERVAL);
+
+    if (isEmpty(log_type[0])) {
+        tr_log(LOG_INFO, "%s is empty!", log_type[0]);
+        return;
+    } else {
+        tr_log(LOG_INFO, "report %s!", log_type[0]);
+
+        insert_file_buffer(log_type[0], "]");
+        createUploadFilename(uploadName,
+                             trapp.cfg.dataAcqSysType,
+                             trapp.cfg.dataGenIden,
+                             trapp.cfg.vendorOrgCode,
+                             "001",
+                             "log");
+        tr_ftp_upload(log_type[0], uploadName, log_type[0],
+                      trapp.ftp_url, trapp.usr_key);
+
+        clear_file_buffer(log_type[0]);
+    }
+}
 
 void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 {
-    tr_log(LOG_INFO, "recv ap msg ...");
+    tr_log(LOG_INFO, "recv ap msg ... fd: %d", fd);
     struct sockaddr_in addr;
     int addr_len;
     int msg_len;
@@ -190,15 +235,23 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 
     msg_len = recvfrom(fd, msg, sizeof(msg), 0,
                        (struct sockaddr *)&addr, &addr_len);
+    if (msg_len < 0) {
+        tr_log(LOG_ERR, "recv msg fail! errno: %d", errno);
+        tr_log(LOG_ERR, "%s", strerror(errno));
+        return;
+    }
     printHexBuffer(msg, msg_len);
 
-    FILE *fp = NULL;
-    get_fp(&fp, log_type[0]);
-    const char *buf = "{ test }";
-    fwrite(buf, 1, sizeof(buf), fp);
-    fclose(fp);
     /* parse to json */
+
     /* write to file */
+    char *buf = "{\"test\":11,\"af\":22}";
+    if (isEmpty(log_type[0])) {
+        insert_file_buffer(log_type[0], "[");
+    } else {
+        insert_file_buffer(log_type[0], ",");
+    }
+    insert_file_buffer(log_type[0], buf);
 }
 
 /*
@@ -207,11 +260,15 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 int main(int argc, char **argv)
 {
     int c;
-    while ((c = getopt(argc, argv, "h:u:dx")) != -1) {
+    while ((c = getopt(argc, argv, "f:h:u:dx")) != -1) {
         switch(c) {
         case 'u':
             trapp.usr_key = optarg;
             printf("user key: %s \n", trapp.usr_key);
+            break;
+        case 'f':
+            trapp.filecfg = optarg;
+            printf("filecfg: %s \n", trapp.filecfg);
             break;
         case 'h':
             trapp.ftp_url = optarg;
@@ -242,15 +299,7 @@ int main(int argc, char **argv)
 
     tr_log(LOG_INFO, "transt starting..\n");
 
-    /* FTP_OPT ftp_option; */
-    /* char *dir = "/a/b/"; */
-    /* char *filename = "upload.txt"; */
-    /* ftp_opt_cfg(&ftp_option, ftpserver, usrPwd, dir, "upload.txt"); */
-
-    /* if(FTP_UPLOAD_SUCCESS == ftp_upload(ftp_option)) */
-    /*     tr_log(LOG_INFO, "Upload success.\n"); */
-    /* else */
-    /*     tr_log(LOG_INFO, "Upload failed.\n"); */
+    readcfg(trapp.filecfg);
 
     udpserver_init(&trapp.sock, APP_PORT);
 

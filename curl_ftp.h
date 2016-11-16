@@ -10,7 +10,7 @@ typedef enum FTP_STATE {
 }FTP_STATE;
 
 typedef struct FTP_OPT {
-    char url[512];                  /* url of ftp */
+    char url[512];              /* url of ftp */
     char *user_key;             /* username:password */
     char *file;                 /* filepath */
 }FTP_OPT;
