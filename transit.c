@@ -200,6 +200,20 @@ int isEmpty(const char *filename)
         return 1;
 }
 
+/*
+ * substring to be replace
+ */
+void replace_str(char *str, char *sub, char *rep)
+{
+    char *p;
+
+    if(!(p = strstr(str, sub)))
+        return;
+
+    sprintf(str + (p - str), "%s%s", rep, p + strlen(sub));
+    return;
+}
+
 void timer_cb(evutil_socket_t fd, short event, void *arg)
 {
     char uploadName[256] = {0};
@@ -216,12 +230,14 @@ void timer_cb(evutil_socket_t fd, short event, void *arg)
                              trapp.cfg.dataAcqSysType,
                              trapp.cfg.dataGenIden,
                              trapp.cfg.vendorOrgCode,
-                             "001",
-                             "log");
+                             "001", "log");
         tr_ftp_upload(log_type[0], uploadName, log_type[0],
                       trapp.ftp_url, trapp.usr_key);
-
         clear_file_buffer(log_type[0]);
+
+        sprintf(uploadName + strlen(uploadName), "%s", ".ok");
+        tr_ftp_upload(log_type[0], uploadName, log_type[0],
+                      trapp.ftp_url, trapp.usr_key);
     }
 }
 
@@ -260,9 +276,9 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 int main(int argc, char **argv)
 {
     int c;
-    while ((c = getopt(argc, argv, "f:h:u:dx")) != -1) {
+    while ((c = getopt(argc, argv, "f:r:k:dx")) != -1) {
         switch(c) {
-        case 'u':
+        case 'k':
             trapp.usr_key = optarg;
             printf("user key: %s \n", trapp.usr_key);
             break;
@@ -270,7 +286,7 @@ int main(int argc, char **argv)
             trapp.filecfg = optarg;
             printf("filecfg: %s \n", trapp.filecfg);
             break;
-        case 'h':
+        case 'r':
             trapp.ftp_url = optarg;
             printf("ftpserver: %s \n", trapp.ftp_url);
             break;
@@ -283,11 +299,11 @@ int main(int argc, char **argv)
             break;
         default:
             printf("Usage: transit \n");
-            printf("\t -h: ftpserver's ip or hostname\n");
-            printf("\t -u: ftpserver's username and password, 'root:123456'\n");
+            printf("\t -r: ftpserver's ip or hostname\n");
+            printf("\t -k: ftpserver's username and password, 'root:123456'\n");
             printf("\t -d: run in daemon\n");
             printf("\t -x: enable log\n");
-            printf("example: ./transit -d -x -u aaa:123 -h 10.1.1.1\n");
+            printf("example: ./transit -d -x -k aaa:123 -r 10.1.1.1\n");
             exit(1);
         }
     }
@@ -309,7 +325,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    /* event for recv AP msg  */
+    /* recv AP msg  */
     trapp.ev_udp = event_new(trapp.base, trapp.sock, EV_PERSIST | EV_READ,
                              apmsg_recv_cb, NULL);
     event_add(trapp.ev_udp, NULL);
