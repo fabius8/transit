@@ -2,6 +2,7 @@ LDLIBS = -lcurl -lssl -lcrypto -lz -lidn -lrt -levent
 obj-app = transit
 srcs = $(wildcard *.c)
 srcs += $(wildcard iniparser/*.c)
+srcs += $(wildcard parson/*.c)
 obj-dep += $(patsubst %.c, %.o, $(srcs))
 
 CFLAGS  += -I. -I/iniparser -I/usr/include/curl -g

@@ -12,6 +12,13 @@
  * 全局变量
  */
 struct tr_app trapp = {0};
+const char *log_type[] = {
+    "CONFIG",
+    "WLRZ", "FJGJ", "JSTX", "XWRZ", "SJRZ",
+    "PTNR", "SGJZ", "CSZL", "CSZT", "SBZL",
+    "JSJZT", "SBGJ", "RZSJ", "SJTZ", "PNFJ"
+};
+
 
 /*
  * 宏定义
@@ -22,12 +29,6 @@ struct tr_app trapp = {0};
 #define MAX_LOG_TYPE_NUM        15
 #define SAVE_FILE_DIR           "/tmp/"
 #define create_file(x) clear_file_buffer(x)
-
-const char *log_type[] = {
-    "WLRZ", "FJGJ", "JSTX", "XWRZ", "SJRZ",
-    "PTNR", "SGJZ", "CSZL", "CSZT", "SBZL",
-    "JSJZT", "SBGJ", "RZSJ", "SJTZ", "PNFJ"
-};
 
 /*
  * 日志
@@ -72,21 +73,33 @@ void ftp_opt_cfg(FTP_OPT *ftp_opt,
 /*
  * 初始化读取配置
  */
-void readcfg(char *filecfg)
+void json_parser_config(const char *filecfg)
 {
-    sprintf(trapp.cfg.dataAcqSysType, "%.3s", "123");
-    sprintf(trapp.cfg.dataGenIden, "%.6s", "666666");
-    sprintf(trapp.cfg.vendorOrgCode, "%.9s", "123456789");
+    char fullpath[256] = {0};
+    JSON_Value *root_value;
+    JSON_Object *obj;
 
-    dictionary *dict = iniparser_load(filecfg);
-    if (dict == NULL) {
-        tr_log(LOG_ERR, "cannot parse file: %s\n", dict);
-        return ;
-    }
+    sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, filecfg);
+    tr_log(LOG_INFO, "config file is: %s", fullpath);
 
-    iniparser_dump(dict, stderr);
+    root_value = json_parse_file(fullpath);
+    obj = json_value_get_object(root_value);
 
-    iniparser_freedict(dict);
+    sprintf(trapp.cfg.dataAcqSysType, "%.3s",
+            json_object_get_string(obj, "DateAcquisition")?
+            json_object_get_string(obj, "DateAcquisition"):
+            "000");
+    sprintf(trapp.cfg.dataGenIden, "%.6s",
+            json_object_get_string(obj, "DataGenerationIdentifier")?
+            json_object_get_string(obj, "DataGenerationIdentifier"):
+            "000000");
+    sprintf(trapp.cfg.vendorOrgCode, "%.9s",
+            json_object_get_string(obj, "VendorOrganizationCode")?
+            json_object_get_string(obj, "VendorOrganizationCode"):
+            "000000000");
+
+    json_value_free(root_value);
+
 }
 
 /*
@@ -95,7 +108,7 @@ void readcfg(char *filecfg)
  */
 void createUploadFilename(char *filename, char *dataAcqSysType,
                           char *dataGenIden, char *vendorOrgCode,
-                          char *logType, char *suffix)
+                          int logType, char *suffix)
 {
     time_t t;
     struct tm *timeinfo;
@@ -113,7 +126,7 @@ void createUploadFilename(char *filename, char *dataAcqSysType,
             "%d%02d%02d"
             "%02d%02d%02d%03d"
             "_%.3s_%.6s_%.9s"
-            "_%.3s.%s",
+            "_%03d.%s",
             timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
             timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, random,
             dataAcqSysType, dataGenIden, vendorOrgCode,
@@ -143,7 +156,7 @@ void tr_ftp_upload(const char *orgName, char *uploadName, const char *logType,
             timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
             timeinfo->tm_hour, timeinfo->tm_min);
 
-    sprintf(fullpath, SAVE_FILE_DIR"%s", orgName);
+    sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, orgName);
 
     ftp_opt_cfg(&ftp_option, ftp_url, usr_key, dir, uploadName, fullpath);
 
@@ -161,7 +174,7 @@ void clear_file_buffer(const char *filename)
     char fullpath[256] = {0};
 
     if (filename) {
-        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+        sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, filename);
         fclose(fopen(fullpath, "w"));
     }
 }
@@ -175,7 +188,7 @@ void insert_file_buffer(const char *filename, char *buffer)
     FILE *fp;
 
     if (filename && buffer) {
-        sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+        sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, filename);
         fp = fopen(fullpath, "a+");
         fwrite(buffer, 1, strlen(buffer), fp);
         fclose(fp);
@@ -190,7 +203,7 @@ int isEmpty(const char *filename)
     char fullpath[256] = {0};
     struct stat st;
 
-    sprintf(fullpath, SAVE_FILE_DIR"%s", filename);
+    sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, filename);
     if (stat(fullpath, &st) != 0) {
         return 1;
     }
@@ -219,27 +232,53 @@ void timer_cb(evutil_socket_t fd, short event, void *arg)
     char uploadName[256] = {0};
     tr_log(LOG_INFO, "Time up! Wait next %d secs", TIME_INTERVAL);
 
-    if (isEmpty(log_type[0])) {
-        tr_log(LOG_INFO, "%s is empty!", log_type[0]);
+    if (isEmpty(log_type[WLRZ])) {
+        tr_log(LOG_INFO, "%s is empty!", log_type[WLRZ]);
         return;
     } else {
-        tr_log(LOG_INFO, "report %s!", log_type[0]);
+        tr_log(LOG_INFO, "report %s!", log_type[WLRZ]);
 
-        insert_file_buffer(log_type[0], "]");
+        insert_file_buffer(log_type[WLRZ], "]");
         createUploadFilename(uploadName,
                              trapp.cfg.dataAcqSysType,
                              trapp.cfg.dataGenIden,
                              trapp.cfg.vendorOrgCode,
-                             "001", "log");
-        tr_ftp_upload(log_type[0], uploadName, log_type[0],
+                             WLRZ, "log");
+        tr_ftp_upload(log_type[WLRZ], uploadName, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
-        clear_file_buffer(log_type[0]);
+        clear_file_buffer(log_type[WLRZ]);
 
         sprintf(uploadName + strlen(uploadName), "%s", ".ok");
-        tr_ftp_upload(log_type[0], uploadName, log_type[0],
+        tr_ftp_upload(log_type[WLRZ], uploadName, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
     }
 }
+
+void init_send_json(int num)
+{
+    char uploadName[256] = {0};
+
+    if (isEmpty(log_type[num])) {
+        tr_log(LOG_INFO, "%s is empty!", log_type[num]);
+        return;
+    } else {
+        tr_log(LOG_INFO, "report %s!", log_type[num]);
+
+        createUploadFilename(uploadName,
+                             trapp.cfg.dataAcqSysType,
+                             trapp.cfg.dataGenIden,
+                             trapp.cfg.vendorOrgCode,
+                             num, "log");
+        tr_ftp_upload(log_type[num], uploadName, log_type[num],
+                      trapp.ftp_url, trapp.usr_key);
+
+        sprintf(uploadName + strlen(uploadName), "%s", ".ok");
+        tr_ftp_upload(log_type[num], uploadName, log_type[num],
+                      trapp.ftp_url, trapp.usr_key);
+    }
+
+}
+
 
 void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 {
@@ -262,12 +301,21 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 
     /* write to file */
     char *buf = "{\"test\":11,\"af\":22}";
-    if (isEmpty(log_type[0])) {
-        insert_file_buffer(log_type[0], "[");
+    if (isEmpty(log_type[WLRZ])) {
+        insert_file_buffer(log_type[WLRZ], "[");
     } else {
-        insert_file_buffer(log_type[0], ",");
+        insert_file_buffer(log_type[WLRZ], ",");
     }
-    insert_file_buffer(log_type[0], buf);
+    insert_file_buffer(log_type[WLRZ], buf);
+}
+
+void init_json_dir()
+{
+    if (!trapp.dir_for_jsons)
+        trapp.dir_for_jsons = SAVE_FILE_DIR;
+    char command[512];
+    sprintf(command, "mkdir -p %s", trapp.dir_for_jsons);
+    system(command);
 }
 
 /*
@@ -276,15 +324,11 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 int main(int argc, char **argv)
 {
     int c;
-    while ((c = getopt(argc, argv, "f:r:k:dx")) != -1) {
+    while ((c = getopt(argc, argv, "D:r:k:p:dx")) != -1) {
         switch(c) {
         case 'k':
             trapp.usr_key = optarg;
             printf("user key: %s \n", trapp.usr_key);
-            break;
-        case 'f':
-            trapp.filecfg = optarg;
-            printf("filecfg: %s \n", trapp.filecfg);
             break;
         case 'r':
             trapp.ftp_url = optarg;
@@ -294,16 +338,25 @@ int main(int argc, char **argv)
             printf("enable log\n");
             trapp.debug = 1;
             break;
+        case 'D':
+            trapp.dir_for_jsons = optarg;
+            printf("read all files in this dir: %s\n", trapp.dir_for_jsons);
+            break;
         case 'd':
             trapp.isdaemon = 1;
             break;
         default:
             printf("Usage: transit \n");
             printf("\t -r: ftpserver's ip or hostname\n");
-            printf("\t -k: ftpserver's username and password, 'root:123456'\n");
+            printf("\t -k: ftpserver's username and password\n");
+            printf("\t     (default: anonymous:anonymous)\n");
             printf("\t -d: run in daemon\n");
-            printf("\t -x: enable log\n");
-            printf("example: ./transit -d -x -k aaa:123 -r 10.1.1.1\n");
+            printf("\t -x: open log, see in /var/log/message, ");
+            printf("depends on syslog.conf\n");
+            printf("\t     (defalut: close)\n");
+            printf("\t -D: all json fils keep in this dir\n");
+            printf("\t     (defalut: /tmp/)\n");
+            printf("example: ./transit -d -k aaa:123 -r 10.1.1.1 -D /tmp/\n");
             exit(1);
         }
     }
@@ -315,7 +368,14 @@ int main(int argc, char **argv)
 
     tr_log(LOG_INFO, "transt starting..\n");
 
-    readcfg(trapp.filecfg);
+    init_json_dir();
+    tr_log(LOG_INFO, "json file is in %s\n", trapp.dir_for_jsons);
+
+    json_parser_config(log_type[0]);
+
+    for (int i = 1; i <= 15; i ++) {
+        init_send_json(i);
+    }
 
     udpserver_init(&trapp.sock, APP_PORT);
 

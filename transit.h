@@ -15,6 +15,7 @@
 #include "event.h"
 #include "curl_ftp.h"
 #include "iniparser/iniparser.h"
+#include "parson/parson.h"
 
 extern struct tr_app trapp;
 extern const char *log_type[];
@@ -23,14 +24,29 @@ extern void tr_log(int level, const char *fmt, ...);
 extern void printHexBuffer(void *buf, unsigned long len);
 extern void udpserver_init(int *sock, unsigned short port);
 
+#define WLRZ  1
+#define FJGJ  2 
+#define JSTX  3
+#define XWRZ  4
+#define SJRZ  5
+#define PTNR  6
+#define SGJZ  7
+#define CSZL  8
+#define CSZT  9
+#define SBZL  10
+#define JSJZT 11
+#define SBGJ  12
+#define RZSJ  13
+#define SJTZ  14
+#define PNFJ  15
+
 struct tr_app {
     struct event_base *base;
     struct event *ev_udp;
     int sock;
     int debug;
     int isdaemon;
-    char current_dir[256];
-    char *filecfg;
+    char *dir_for_jsons;
     char *usr_key;
     char *ftp_url;
     struct {
