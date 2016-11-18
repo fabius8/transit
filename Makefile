@@ -3,7 +3,7 @@ export LDLIBS = -lcurl -lssl -lcrypto -lz -lidn -lrt
 
 obj-app = transit
 srcs = $(wildcard *.c)
-srcs += $(wildcard iniparser/*.c)
+srcs += $(wildcard parson/*.c)
 #obj-dep += $(APP_COMMON)/nvram_flash.o daemon.o dhcphotbackup.o
 obj-dep += $(patsubst %.c, %.o, $(srcs))
 #obj-dep += $(APP_COMMON)/nvram_flash.o

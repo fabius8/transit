@@ -14,7 +14,6 @@
 
 #include "event.h"
 #include "curl_ftp.h"
-#include "iniparser/iniparser.h"
 #include "parson/parson.h"
 
 extern struct tr_app trapp;
@@ -24,21 +23,36 @@ extern void tr_log(int level, const char *fmt, ...);
 extern void printHexBuffer(void *buf, unsigned long len);
 extern void udpserver_init(int *sock, unsigned short port);
 
-#define WLRZ  1
-#define FJGJ  2 
-#define JSTX  3
-#define XWRZ  4
-#define SJRZ  5
-#define PTNR  6
-#define SGJZ  7
-#define CSZL  8
-#define CSZT  9
-#define SBZL  10
-#define JSJZT 11
-#define SBGJ  12
-#define RZSJ  13
-#define SJTZ  14
-#define PNFJ  15
+#define CONFIG 0
+#define WLRZ   1
+#define FJGJ   2
+#define JSTX   3
+#define XWRZ   4
+#define SJRZ   5
+#define PTNR   6
+#define SGJZ   7
+#define CSZL   8
+#define CSZT   9
+#define SBZL   10
+#define JSJZT  11
+#define SBGJ   12
+#define RZSJ   13
+#define SJTZ   14
+#define PNFJ   15
+
+#ifndef MAC_FMT
+#define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
+#endif
+
+#ifndef MAC_ARG
+#define MAC_ARG(x)                              \
+        ((unsigned char*)(x))[0],               \
+        ((unsigned char*)(x))[1],               \
+        ((unsigned char*)(x))[2],               \
+        ((unsigned char*)(x))[3],               \
+        ((unsigned char*)(x))[4],               \
+        ((unsigned char*)(x))[5]
+#endif
 
 struct tr_app {
     struct event_base *base;
@@ -55,6 +69,58 @@ struct tr_app {
         char vendorOrgCode[9];
     } cfg;
 };
+
+#define DW_AUDIT_HEADER     (0x7C83)
+#define DW_AUDIT_PDU_HEADER (0x7C83)
+
+
+struct locator_mdu_pdu_head_dw_audit {
+    unsigned short header;
+    unsigned short requestId;
+    unsigned char  code;
+    unsigned char  subCode;
+    unsigned char  reserved[2];
+    unsigned int   dataLength;
+}__attribute__((packed));
+
+struct locator_mdu_num_dw_audit {
+    unsigned short MDUNumber;
+    unsigned char  reserved[2];
+}__attribute__((packed));
+
+struct locator_mdu_payload_dw_audit {
+    unsigned short header;
+    unsigned short requestId;
+    unsigned char  code;
+    unsigned char  subCode;
+    unsigned int   dataLength;
+    unsigned char  apMac[6];
+    unsigned short vendorId;
+    unsigned char  reserved1[2];
+    unsigned char  bssid[6];
+    unsigned char  radioType;
+    unsigned char  channel;
+    unsigned char  isAssoc;
+    unsigned char  reserved2;
+    unsigned int   timestamp;
+    unsigned char  reserved3[2];
+    unsigned char  muType;
+    unsigned char  reserved4;
+    unsigned char  AbsRssi;
+    unsigned char  reserved5;
+    unsigned char  noiseFloor;
+    unsigned char  reserved6[3];
+    unsigned char  dataRate;
+    unsigned char  mpduFlags;
+    unsigned char  muMac[6];
+    unsigned short frameCtrl;
+    unsigned short seqCtrl;
+    unsigned char  reserved7[2];
+    unsigned char  crc;
+    unsigned char  encryptType;
+    unsigned char  reserved8[2];
+    unsigned char  ssid[32];
+} __attribute__((packed));
 
 struct tr_feature_collection {
     char N01_mac[17];

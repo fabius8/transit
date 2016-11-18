@@ -23,12 +23,15 @@ const char *log_type[] = {
 /*
  * 宏定义
  */
+#define ANSI_COLOR_YELLOW       "\x1b[33m"
+#define ANSI_COLOR_BLUE         "\x1b[34m"
+#define ANSI_COLOR_RESET        "\x1b[0m"
 #define APP                     "transit"
 #define APP_PORT                6666
-#define TIME_INTERVAL           10
+#define TIME_INTERVAL           5
 #define MAX_LOG_TYPE_NUM        15
 #define SAVE_FILE_DIR           "/tmp/"
-#define create_file(x) clear_file_buffer(x)
+#define create_file(x)          clear_file_buffer(x)
 
 /*
  * 日志
@@ -104,7 +107,7 @@ void json_parser_config(const char *filecfg)
 
 /*
  * 文件命名
- * example: 20150605093157706_123_440303_723005104_002.log
+ * Example: 20150605093157706_123_440303_723005104_002.log
  */
 void createUploadFilename(char *filename, char *dataAcqSysType,
                           char *dataGenIden, char *vendorOrgCode,
@@ -214,19 +217,8 @@ int isEmpty(const char *filename)
 }
 
 /*
- * substring to be replace
+ * 发送WLRZ日志, 以后会加入其他日志发送
  */
-void replace_str(char *str, char *sub, char *rep)
-{
-    char *p;
-
-    if(!(p = strstr(str, sub)))
-        return;
-
-    sprintf(str + (p - str), "%s%s", rep, p + strlen(sub));
-    return;
-}
-
 void timer_cb(evutil_socket_t fd, short event, void *arg)
 {
     char uploadName[256] = {0};
@@ -254,6 +246,9 @@ void timer_cb(evutil_socket_t fd, short event, void *arg)
     }
 }
 
+/*
+ * 第一次启动系统发送某个日志，发送完不清空
+ */
 void init_send_json(int num)
 {
     char uploadName[256] = {0};
@@ -279,14 +274,91 @@ void init_send_json(int num)
 
 }
 
+int parser_apmsg_to_json(unsigned char *msg, int msg_len, char *json)
+{
+    int plus = strlen(json);
+    int header_size;
+    int number_size;
+    int value_size;
+    int total_value_size;
+    struct locator_mdu_payload_dw_audit *mdu;
 
+    header_size = sizeof(struct locator_mdu_pdu_head_dw_audit);
+    number_size = sizeof(struct locator_mdu_num_dw_audit);
+    value_size = sizeof(struct locator_mdu_payload_dw_audit);
+
+    struct locator_mdu_pdu_head_dw_audit *pdu_head = \
+        (struct locator_mdu_pdu_head_dw_audit *)msg;
+    struct locator_mdu_num_dw_audit *num_mdu = \
+        (struct locator_mdu_num_dw_audit *)(msg + header_size);
+
+    num_mdu->MDUNumber = ntohs(num_mdu->MDUNumber);
+    total_value_size = value_size * (num_mdu->MDUNumber);
+
+    pdu_head->header = ntohs(pdu_head->header);
+    pdu_head->requestId = ntohs(pdu_head->requestId);
+    pdu_head->dataLength = ntohl(pdu_head->dataLength);
+
+    if (pdu_head->header != DW_AUDIT_HEADER) {
+        tr_log(LOG_INFO, "Wrong header: %hu", pdu_head->header);
+        return -1;
+    }
+
+    if ((msg_len - sizeof(struct locator_mdu_pdu_head_dw_audit)) != \
+        pdu_head->dataLength) {
+        tr_log(LOG_INFO, "Wrong msg! msg_len: %d, head_len: %d, data_len: %d",
+               msg_len, sizeof(struct locator_mdu_pdu_head_dw_audit),
+               pdu_head->dataLength);
+        return -1;
+    }
+
+    if ((pdu_head->dataLength) != (number_size + \
+                                   total_value_size)) {
+        tr_log(LOG_INFO, "Wrong msg:%d %d %d %d value_size:%d number:%d",
+               msg_len, pdu_head->dataLength, number_size,
+               total_value_size, value_size, num_mdu->MDUNumber);
+        return -1;
+    }
+
+    tr_log(LOG_INFO, "%s", json);
+    if (plus > 10)
+        plus += sprintf(json + plus, "%s", ",");
+
+    plus += sprintf(json + plus, "%s", "{");
+    num_mdu->MDUNumber = 3;
+    for (int i = 0; i < num_mdu->MDUNumber; i++) {
+        mdu = (struct locator_mdu_payload_dw_audit *)(msg +             \
+                                                      header_size +     \
+                                                      number_size +     \
+                                                      i * value_size);
+        mdu->header = ntohs(mdu->header);
+        if (mdu->header != DW_AUDIT_HEADER)
+            break;
+        mdu->vendorId = ntohs(mdu->vendorId);
+        mdu->timestamp = ntohl(mdu->timestamp);
+        mdu->frameCtrl = ntohs(mdu->frameCtrl);
+        mdu->seqCtrl = ntohs(mdu->seqCtrl);
+
+        plus += sprintf(json + plus, "\"MAC\":""\""MAC_FMT"\",",
+                        MAC_ARG(mdu->apMac));
+    }
+    plus += sprintf(json + plus, "%s", "}");
+
+    return 0;
+}
+
+/*
+ * Recv AP masg, use 64k buffer to avoid truncation
+ */
 void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 {
     tr_log(LOG_INFO, "recv ap msg ... fd: %d", fd);
-    struct sockaddr_in addr;
+
     int addr_len;
     int msg_len;
-    unsigned char msg[4096];
+    char json[1024*64];
+    unsigned char msg[1024*64];
+    struct sockaddr_in addr;
 
     msg_len = recvfrom(fd, msg, sizeof(msg), 0,
                        (struct sockaddr *)&addr, &addr_len);
@@ -295,20 +367,25 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
         tr_log(LOG_ERR, "%s", strerror(errno));
         return;
     }
-    printHexBuffer(msg, msg_len);
+    //printHexBuffer(msg, msg_len);
 
     /* parse to json */
+    if ( -1 == parser_apmsg_to_json(msg, msg_len, json)) {
+        return;
+    }
 
     /* write to file */
-    char *buf = "{\"test\":11,\"af\":22}";
     if (isEmpty(log_type[WLRZ])) {
         insert_file_buffer(log_type[WLRZ], "[");
     } else {
         insert_file_buffer(log_type[WLRZ], ",");
     }
-    insert_file_buffer(log_type[WLRZ], buf);
+    insert_file_buffer(log_type[WLRZ], json);
 }
 
+/*
+ * 获取日志存放目录
+ */
 void init_json_dir()
 {
     if (!trapp.dir_for_jsons)
@@ -354,9 +431,16 @@ int main(int argc, char **argv)
             printf("\t -x: open log, see in /var/log/message, ");
             printf("depends on syslog.conf\n");
             printf("\t     (defalut: close)\n");
-            printf("\t -D: all json fils keep in this dir\n");
+            printf("\t -D: all json fils keep in this dir, ");
+            printf("include config file.\n");
             printf("\t     (defalut: /tmp/)\n");
-            printf("example: ./transit -d -k aaa:123 -r 10.1.1.1 -D /tmp/\n");
+            printf("\t     filename: CONFIG (!!this is config file)\n");
+            printf("\t               WLRZ FJGJ JSTX XWRZ SJRZ\n");
+            printf("\t               PTNR SGJZ CSZL CSZT SBZL\n");
+            printf("\t               JSJZT SBGJ RZSJ SJTZ PNFJ\n");
+            printf("Example:"ANSI_COLOR_YELLOW);
+            printf("./transit -d -k aaa:123 -r 10.1.1.1 -D /tmp/");
+            printf(ANSI_COLOR_RESET"\n");
             exit(1);
         }
     }
@@ -371,7 +455,7 @@ int main(int argc, char **argv)
     init_json_dir();
     tr_log(LOG_INFO, "json file is in %s\n", trapp.dir_for_jsons);
 
-    json_parser_config(log_type[0]);
+    json_parser_config(log_type[CONFIG]);
 
     for (int i = 1; i <= 15; i ++) {
         init_send_json(i);
