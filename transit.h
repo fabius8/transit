@@ -41,8 +41,13 @@ extern void udpserver_init(int *sock, unsigned short port);
 #define PNFJ   15
 
 #ifndef MAC_FMT
-#define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
+#define MAC_FMT "%02X-%02X-%02X-%02X-%02X-%02X"
 #endif
+
+#ifndef MAC_FMT_L
+#define MAC_FMT_L "%02X%02X%02X%02X%02X%02X"
+#endif
+
 
 #ifndef MAC_ARG
 #define MAC_ARG(x)                              \
@@ -60,6 +65,7 @@ struct tr_app {
     int sock;
     int debug;
     int isdaemon;
+    int count_wlrz;
     char *dir_for_jsons;
     char *usr_key;
     char *ftp_url;
@@ -67,6 +73,7 @@ struct tr_app {
         char dataAcqSysType[3];
         char dataGenIden[6];
         char vendorOrgCode[9];
+        char company_id[32];
     } cfg;
 };
 
