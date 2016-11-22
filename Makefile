@@ -1,4 +1,5 @@
 export CFLAGS = -I./
+# curl need enable-ftp
 export LDLIBS = -lcurl -lssl -lcrypto -lz -lidn -lrt
 
 obj-app = transit

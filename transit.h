@@ -113,7 +113,7 @@ struct locator_mdu_payload_dw_audit {
     unsigned char  reserved3[2];
     unsigned char  muType;
     unsigned char  reserved4;
-    unsigned char  AbsRssi;
+    char  AbsRssi;
     unsigned char  reserved5;
     unsigned char  noiseFloor;
     unsigned char  reserved6[3];

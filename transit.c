@@ -25,9 +25,6 @@ const char *log_type[] = {
 /*
  * 宏定义
  */
-#define ANSI_COLOR_YELLOW       "\x1b[33m"
-#define ANSI_COLOR_BLUE         "\x1b[34m"
-#define ANSI_COLOR_RESET        "\x1b[0m"
 #define APP                     "transit"
 #define APP_PORT                6666
 #define TIME_INTERVAL           5
@@ -77,7 +74,7 @@ void ftp_opt_cfg(FTP_OPT *ftp_opt,
 /*
  * 读取 LOG/SBZL 配置
  */
-void json_parser_SBZL(const char *filecfg)
+void json_parser_sbzl(const char *filecfg)
 {
 }
 
@@ -106,7 +103,7 @@ void json_parser_cszl(const char *filecfg)
             json_object_get_string(obj, "XPOINT"):
             "0.0");
 
-    sprintf(trcszl.N31_xpoint, "%s",
+    sprintf(trcszl.N32_ypoint, "%s",
             json_object_get_string(obj, "YPOINT")?
             json_object_get_string(obj, "YPOINT"):
             "0.0");
@@ -264,16 +261,15 @@ int isEmpty(const char *filename)
 /*
  * 发送WLRZ日志, 以后会加入其他日志发送
  */
-void timer_cb(evutil_socket_t fd, short event, void *arg)
+void upload_json_cb(evutil_socket_t fd, short event, void *arg)
 {
     char uploadName[256] = {0};
-    tr_log(LOG_INFO, "Time up! Wait next %d secs", TIME_INTERVAL);
+    tr_log(LOG_INFO, "Report %s!", log_type[WLRZ]);
 
     if (isEmpty(log_type[WLRZ])) {
         tr_log(LOG_INFO, "%s is empty!", log_type[WLRZ]);
         return;
     } else {
-        tr_log(LOG_INFO, "report %s!", log_type[WLRZ]);
 
         insert_file_buffer(log_type[WLRZ], "]");
         createUploadFilename(uploadName,
@@ -289,6 +285,8 @@ void timer_cb(evutil_socket_t fd, short event, void *arg)
         tr_ftp_upload(log_type[WLRZ], uploadName, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
     }
+
+    tr_log(LOG_INFO, "Report end", TIME_INTERVAL);
 }
 
 /*
@@ -326,63 +324,63 @@ void parser_mdu_into_json(int *plus,
     *plus += sprintf(json + *plus, "%s", "{");
 
     *plus += sprintf(json + *plus,
-                    "\"MAC\":\""MAC_FMT"\",", MAC_ARG(mdu->muMac));
+                     "\"MAC\":\""MAC_FMT"\",", MAC_ARG(mdu->muMac));
     *plus += sprintf(json + *plus,
-                    "\"TYPE\":%d,", 2);
+                     "\"TYPE\":%d,", 2);
     *plus += sprintf(json + *plus,
-                    "\"START_TIME\":%u,", mdu->timestamp/1000);
+                     "\"START_TIME\":%u,", mdu->timestamp/1000);
     *plus += sprintf(json + *plus,
-                    "\"END_TIME:\"%u,", 0);
+                     "\"END_TIME:\"%u,", 0);
     *plus += sprintf(json + *plus,
-                    "\"POWER:\"%d,", mdu->AbsRssi);
+                     "\"POWER:\"%hhd,", mdu->AbsRssi);
     *plus += sprintf(json + *plus,
-                    "\"BSSID\":\""MAC_FMT"\",", MAC_ARG(mdu->bssid);
+                     "\"BSSID\":\""MAC_FMT"\",", MAC_ARG(mdu->bssid));
     *plus += sprintf(json + *plus,
-                    "\"ESSID\":\"%s\",", mdu->ssid);
+                     "\"ESSID\":\"%s\",", mdu->ssid);
     *plus += sprintf(json + *plus,
-                    "\"HISTORY_ESSID\":\"%s\",", "");
+                     "\"HISTORY_ESSID\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"MODEL\":\"%s\",", "");
+                     "\"MODEL\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"OS_VERSION\":\"%s\",", "");
+                     "\"OS_VERSION\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"IMEI\":\"%s\",", "");
+                     "\"IMEI\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"IMSI\":\"%s\",", "");
+                     "\"IMSI\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"STATION\":\"%s\",", "");
+                     "\"STATION\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"XPOINT\":\"%s\",", trcszl.N31_xpoint);
+                     "\"XPOINT\":\"%s\",", trcszl.N31_xpoint);
     *plus += sprintf(json + *plus,
-                    "\"YPOINT\":\"%s\",", trcszl.N32_ypoint);
+                     "\"YPOINT\":\"%s\",", trcszl.N32_ypoint);
     *plus += sprintf(json + *plus,
-                    "\"PHONE\":\"%s\",", "");
+                     "\"PHONE\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"DEVMAC\":\""MAC_FMT"\",", MAC_ARG(mdu->apMac);
+                     "\"DEVMAC\":\""MAC_FMT"\",", MAC_ARG(mdu->apMac));
     *plus += sprintf(json + *plus,
-                    "\"DEVICENUM\":\"%s"MAC_FMT_L"\",",
-                    trapp.cfg.company_id, MAC_ARG(mdu->apMac));
+                     "\"DEVICENUM\":\"%s"MAC_FMT_L"\",",
+                     trapp.cfg.company_id, MAC_ARG(mdu->apMac));
     *plus += sprintf(json + *plus,
-                    "\"SERVICECODE\":\"%s\",", trcszl.N01_service_code);
+                     "\"SERVICECODE\":\"%s\",", trcszl.N01_service_code);
     *plus += sprintf(json + *plus,
-                    "\"PORTOCOL\":\"%s\",", "");
+                     "\"PORTOCOL\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"ACCOUNT\":\"%s\",", "");
+                     "\"ACCOUNT\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"FLAG\":\"%s\",", "");
+                     "\"FLAG\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"URL\":\"%s\",", "");
+                     "\"URL\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"COMPANY_ID\":\"%s\",", trapp.cfg.company_id);
+                     "\"COMPANY_ID\":\"%s\",", trapp.cfg.company_id);
     *plus += sprintf(json + *plus,
-                    "\"AP_CHANNEL\":\"%hhu\",", mdu->channel);
+                     "\"AP_CHANNEL\":\"%hhu\",", mdu->channel);
     *plus += sprintf(json + *plus,
-                    "\"AP_ENCRYTYPE\":\"%hhu\",",
-                    mdu->encryptType?mdu->encryptType:99);
+                     "\"AP_ENCRYTYPE\":\"%hhu\",",
+                     mdu->encryptType?mdu->encryptType:99);
     *plus += sprintf(json + *plus,
-                    "\"CONSULT_XPOINT\":\"%s\",", "");
+                     "\"CONSULT_XPOINT\":\"%s\",", "");
     *plus += sprintf(json + *plus,
-                    "\"CONSULT_YPOINT\":\"%s\"", "");
+                     "\"CONSULT_YPOINT\":\"%s\"", "");
 
     *plus += sprintf(json + *plus, "%s", "}");
 }
@@ -451,9 +449,12 @@ int parser_apmsg_to_json(unsigned char *msg, int msg_len, char *json)
         mdu->seqCtrl = ntohs(mdu->seqCtrl);
 
         if (plus >= value_size)
-            plus += sprintf(json + plus, "%s", ",");
+            plus += sprintf(json + plus, "%s", ",\n");
         parser_mdu_into_json(&plus, mdu, json);
         trapp.count_wlrz ++;
+
+        tr_log(LOG_INFO, "i:%d, count: %d, strlen: %d",
+               i, trapp.count_wlrz, strlen(json));
 
         /* DROP other */
         if(trapp.count_wlrz >= 10000)
@@ -472,7 +473,7 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 
     int addr_len;
     int msg_len;
-    char json[1024*64];
+    char json[1024*64*8] = {0};
     unsigned char msg[1024*64];
     struct sockaddr_in addr;
 
@@ -485,18 +486,23 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
     }
     //printHexBuffer(msg, msg_len);
 
-    /* parse to json */
+     /* write to file */
+    if (isEmpty(log_type[WLRZ])) {
+        insert_file_buffer(log_type[WLRZ], "[");
+    } else {
+        insert_file_buffer(log_type[WLRZ], ",\n");
+    }
+
+   /* parse to json */
     if ( -1 == parser_apmsg_to_json(msg, msg_len, json)) {
         return;
     }
 
-    /* write to file */
-    if (isEmpty(log_type[WLRZ])) {
-        insert_file_buffer(log_type[WLRZ], "[");
-    } else {
-        insert_file_buffer(log_type[WLRZ], ",");
-    }
     insert_file_buffer(log_type[WLRZ], json);
+    if (trapp.count_wlrz >=10000) {
+        upload_json_cb(-1, -1, NULL);
+        trapp.count_wlrz = 0;
+    }
 }
 
 /*
@@ -554,9 +560,9 @@ int main(int argc, char **argv)
             printf("\t               WLRZ FJGJ JSTX XWRZ SJRZ\n");
             printf("\t               PTNR SGJZ CSZL CSZT SBZL\n");
             printf("\t               JSJZT SBGJ RZSJ SJTZ PNFJ\n");
-            printf("Example:"ANSI_COLOR_YELLOW);
+            printf("Example:");
             printf("./transit -d -k aaa:123 -r 10.1.1.1 -D /tmp/");
-            printf(ANSI_COLOR_RESET"\n");
+            printf("\n");
             exit(1);
         }
     }
@@ -596,7 +602,7 @@ int main(int argc, char **argv)
     struct event *ev_timeout;
     struct timeval tv;
     ev_timeout = event_new(trapp.base, -1, EV_PERSIST | EV_TIMEOUT,
-                           timer_cb, NULL);
+                           upload_json_cb, NULL);
     evutil_timerclear(&tv);
     tv.tv_sec = TIME_INTERVAL;
     event_add(ev_timeout, &tv);
