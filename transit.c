@@ -27,7 +27,7 @@ const char *log_type[] = {
  */
 #define APP                     "transit"
 #define APP_PORT                6666
-#define TIME_INTERVAL           5
+#define TIME_INTERVAL           60*5
 #define MAX_LOG_TYPE_NUM        15
 #define SAVE_FILE_DIR           "/tmp/"
 #define create_file(x)          clear_file_buffer(x)
@@ -80,18 +80,21 @@ void json_parser_sbzl(const char *filecfg)
 
 /*
  * 读取 LOG/CSZL 配置
+ * HOWTO use parson api, see: https://github.com/kgabis/parson
  */
 void json_parser_cszl(const char *filecfg)
 {
     char fullpath[256] = {0};
     JSON_Value *root_value;
+    JSON_Array *objs;
     JSON_Object *obj;
 
     sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, filecfg);
     tr_log(LOG_INFO, "config file is: %s", fullpath);
 
     root_value = json_parse_file(fullpath);
-    obj = json_value_get_object(root_value);
+    objs = json_value_get_array(root_value);
+    obj = json_array_get_object(objs, 0);
 
     sprintf(trcszl.N01_service_code, "%.14s",
             json_object_get_string(obj, "SERVICE_CODE")?
@@ -327,12 +330,14 @@ void parser_mdu_into_json(int *plus,
                      "\"MAC\":\""MAC_FMT"\",", MAC_ARG(mdu->muMac));
     *plus += sprintf(json + *plus,
                      "\"TYPE\":%d,", 2);
+    time_t t;
+    t = time(NULL);
     *plus += sprintf(json + *plus,
-                     "\"START_TIME\":%u,", mdu->timestamp/1000);
+                     "\"START_TIME\":%u,", t);
     *plus += sprintf(json + *plus,
-                     "\"END_TIME:\"%u,", 0);
+                     "\"END_TIME\":%u,", 0);
     *plus += sprintf(json + *plus,
-                     "\"POWER:\"%hhd,", mdu->AbsRssi);
+                     "\"POWER\":%hhd,", mdu->AbsRssi);
     *plus += sprintf(json + *plus,
                      "\"BSSID\":\""MAC_FMT"\",", MAC_ARG(mdu->bssid));
     *plus += sprintf(json + *plus,
@@ -363,7 +368,7 @@ void parser_mdu_into_json(int *plus,
     *plus += sprintf(json + *plus,
                      "\"SERVICECODE\":\"%s\",", trcszl.N01_service_code);
     *plus += sprintf(json + *plus,
-                     "\"PORTOCOL\":\"%s\",", "");
+                     "\"PROTOCOL_TYPE\":\"%s\",", "");
     *plus += sprintf(json + *plus,
                      "\"ACCOUNT\":\"%s\",", "");
     *plus += sprintf(json + *plus,
@@ -435,7 +440,8 @@ int parser_apmsg_to_json(unsigned char *msg, int msg_len, char *json)
     if (plus >= value_size)
         plus += sprintf(json + plus, "%s", ",");
 
-    for (int i = 0; i < num_mdu->MDUNumber; i++) {
+    int i = 0;
+    for (i; i < num_mdu->MDUNumber; i++) {
         mdu = (struct locator_mdu_payload_dw_audit *)(msg +             \
                                                       header_size +     \
                                                       number_size +     \
@@ -453,12 +459,12 @@ int parser_apmsg_to_json(unsigned char *msg, int msg_len, char *json)
         parser_mdu_into_json(&plus, mdu, json);
         trapp.count_wlrz ++;
 
-        tr_log(LOG_INFO, "i:%d, count: %d, strlen: %d",
-               i, trapp.count_wlrz, strlen(json));
-
         /* DROP other */
-        if(trapp.count_wlrz >= 10000)
+        if(trapp.count_wlrz >= 10000) {
+            tr_log(LOG_INFO, "i:%d, count: %d, strlen: %d",
+                   i, trapp.count_wlrz, strlen(json));
             return 0;
+        }
     }
 
     return 0;
@@ -527,11 +533,11 @@ int main(int argc, char **argv)
         switch(c) {
         case 'k':
             trapp.usr_key = optarg;
-            printf("user key: %s \n", trapp.usr_key);
+            printf("username and password: %s \n", trapp.usr_key);
             break;
         case 'r':
             trapp.ftp_url = optarg;
-            printf("ftpserver: %s \n", trapp.ftp_url);
+            printf("ftpserver url and port: %s \n", trapp.ftp_url);
             break;
         case 'x':
             printf("enable log\n");
@@ -546,7 +552,7 @@ int main(int argc, char **argv)
             break;
         default:
             printf("Usage: transit \n");
-            printf("\t -r: ftpserver's ip or hostname\n");
+            printf("\t -r: ftpserver's ip or hostname, option: port\n");
             printf("\t -k: ftpserver's username and password\n");
             printf("\t     (default: anonymous:anonymous)\n");
             printf("\t -d: run in daemon\n");
@@ -555,13 +561,14 @@ int main(int argc, char **argv)
             printf("\t     (defalut: close)\n");
             printf("\t -D: all json fils keep in this dir, ");
             printf("include config file.\n");
+            printf("\t     please see the sample in /appfs/etc/transit_dir/*\n");
             printf("\t     (defalut: /tmp/)\n");
             printf("\t     filename: CONFIG (!!this is config file)\n");
             printf("\t               WLRZ FJGJ JSTX XWRZ SJRZ\n");
             printf("\t               PTNR SGJZ CSZL CSZT SBZL\n");
             printf("\t               JSJZT SBGJ RZSJ SJTZ PNFJ\n");
             printf("Example:");
-            printf("./transit -d -k aaa:123 -r 10.1.1.1 -D /tmp/");
+            printf("./transit -d -k username:password -r ip:port -D /tmp/");
             printf("\n");
             exit(1);
         }
@@ -581,7 +588,8 @@ int main(int argc, char **argv)
     json_parser_cszl(log_type[CSZL]);
     json_parser_sbzl(log_type[SBZL]);
 
-    for (int i = 1; i <= 15; i ++) {
+    int i = 1;
+    for (i; i <= 15; i ++) {
         init_send_json(i);
     }
 

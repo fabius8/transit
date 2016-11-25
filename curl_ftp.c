@@ -84,8 +84,6 @@ CURLcode curl_perform(CURL *curl)
     CURLcode ret = curl_easy_perform(curl);
     if(ret != 0) {
         fprintf(stderr, "Perform curl failed.\n");
-        curl_exit(curl);
-        exit(1);
     }
     return ret;
 }

@@ -126,7 +126,7 @@ struct locator_mdu_payload_dw_audit {
     unsigned char  crc;
     unsigned char  encryptType;
     unsigned char  reserved8[2];
-    unsigned char  ssid[32];
+    unsigned char  ssid[33];
 } __attribute__((packed));
 
 struct tr_feature_collection {
