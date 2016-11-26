@@ -53,7 +53,7 @@ void tr_log(int level, const char *fmt, ...)
 /*
  * 重命名文件
  */
-void renameFile(char *dir, char *old, char *new)
+void renameFile(char *dir, const char *old, char *new)
 {
     char fullpath_old[1024] = {0};
     char fullpath_new[1024] = {0};
@@ -212,7 +212,7 @@ void tr_ftp_upload(const char *orgName,
     t = time(NULL);
     timeinfo = localtime(&t);
 
-    if (!uploadDIr) {
+    if (!uploadDir) {
         sprintf(dir,
                 "/%s/"
                 "%d%02d%02d/"
@@ -583,7 +583,7 @@ int add_file_list(char *filename, struct list_head *head)
     return 0;
 }
 
-int upload_file_list(char *uploaddir, struct list_head *head)
+int upload_file_list(char *uploadDir, struct list_head *head)
 {
     struct list_head *pos, *q;
     FILE_LIST_T *tmp;
@@ -596,11 +596,11 @@ int upload_file_list(char *uploaddir, struct list_head *head)
         /* upload */
         sprintf(localFile, "%s", tmp->localfilename);
         sprintf(uploadFile, "%s", tmp->localfilename);
-        tr_ftp_upload(localFile, uploadFile, uploadDir, WLRZ,
+        tr_ftp_upload(localFile, uploadFile, uploadDir, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
         clear_file_buffer(localFile);
         sprintf(uploadFile + strlen(uploadFile), "%s", ".ok");
-        tr_ftp_upload(localFile, uploadFile, NULL, log_type[WLRZ],
+        tr_ftp_upload(localFile, uploadFile, uploadDir, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
 
         /* rm file */
@@ -615,7 +615,7 @@ int upload_file_list(char *uploaddir, struct list_head *head)
     return 0;
 }
 
-void getUploadDir(char *dir, char *logType)
+void getUploadDir(char *dir, const char *logType)
 {
     time_t t;
     struct tm *timeinfo;
@@ -646,7 +646,7 @@ void *threadFunc(void *arg)
     struct timeval t;
     INIT_LIST_HEAD(&file_list_head.stList);
     char dir[1024] = {0};
-    getUploadDir(dir, WLRZ);
+    getUploadDir(dir, log_type[WLRZ]);
 
     while (1) {
         t.tv_sec = TIME_INTERVAL;

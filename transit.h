@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/socket.h>
