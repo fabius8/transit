@@ -166,7 +166,7 @@ void json_parser_config(const char *filecfg)
  * 文件命名
  * Example: 20150605093157706_123_440303_723005104_002.log
  */
-void createUploadFilename(char *filename, char *dataAcqSysType,
+void getUploadFilename(char *filename, char *dataAcqSysType,
                           char *dataGenIden, char *vendorOrgCode,
                           int logType, char *suffix)
 {
@@ -196,8 +196,12 @@ void createUploadFilename(char *filename, char *dataAcqSysType,
 /*
  * FTP上传文件
  */
-void tr_ftp_upload(const char *orgName, char *uploadName, const char *logType,
-                   char *ftp_url, char *usr_key)
+void tr_ftp_upload(const char *orgName,
+                   char *uploadName,
+                   char *uploadDir,
+                   const char *logType,
+                   char *ftp_url,
+                   char *usr_key)
 {
     char fullpath[256] = {0};
     char dir[256] = {0};
@@ -208,13 +212,20 @@ void tr_ftp_upload(const char *orgName, char *uploadName, const char *logType,
     t = time(NULL);
     timeinfo = localtime(&t);
 
-    sprintf(dir,
-            "/%s/"
-            "%d%02d%02d/"
-            "%02d/%02d/",
-            logType,
-            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
-            timeinfo->tm_hour, timeinfo->tm_min);
+    if (!uploadDIr) {
+        sprintf(dir,
+                "/%s/"
+                "%d%02d%02d/"
+                "%02d/%02d/",
+                logType,
+                timeinfo->tm_year + 1900,
+                timeinfo->tm_mon + 1,
+                timeinfo->tm_mday,
+                timeinfo->tm_hour,
+                timeinfo->tm_min);
+    } else {
+        sprintf(dir, "%s", uploadDir);
+    }
 
     sprintf(fullpath, "%s/""%s", trapp.dir_for_jsons, orgName);
 
@@ -287,17 +298,17 @@ void upload_json_cb(evutil_socket_t fd, short event, void *arg)
     } else {
 
         insert_file_buffer(log_type[WLRZ], "]");
-        createUploadFilename(uploadName,
+        getUploadFilename(uploadName,
                              trapp.cfg.dataAcqSysType,
                              trapp.cfg.dataGenIden,
                              trapp.cfg.vendorOrgCode,
                              WLRZ, "log");
-        tr_ftp_upload(log_type[WLRZ], uploadName, log_type[WLRZ],
+        tr_ftp_upload(log_type[WLRZ], uploadName, NULL, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
         clear_file_buffer(log_type[WLRZ]);
 
         sprintf(uploadName + strlen(uploadName), "%s", ".ok");
-        tr_ftp_upload(log_type[WLRZ], uploadName, log_type[WLRZ],
+        tr_ftp_upload(log_type[WLRZ], uploadName, NULL, log_type[WLRZ],
                       trapp.ftp_url, trapp.usr_key);
     }
 
@@ -317,16 +328,16 @@ void init_send_json(int num)
     } else {
         tr_log(LOG_INFO, "report %s!", log_type[num]);
 
-        createUploadFilename(uploadName,
+        getUploadFilename(uploadName,
                              trapp.cfg.dataAcqSysType,
                              trapp.cfg.dataGenIden,
                              trapp.cfg.vendorOrgCode,
                              num, "log");
-        tr_ftp_upload(log_type[num], uploadName, log_type[num],
+        tr_ftp_upload(log_type[num], uploadName, NULL, log_type[num],
                       trapp.ftp_url, trapp.usr_key);
 
         sprintf(uploadName + strlen(uploadName), "%s", ".ok");
-        tr_ftp_upload(log_type[num], uploadName, log_type[num],
+        tr_ftp_upload(log_type[num], uploadName, NULL, log_type[num],
                       trapp.ftp_url, trapp.usr_key);
     }
 
@@ -520,7 +531,7 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
     if (trapp.count_wlrz >=10000) {
         insert_file_buffer(log_type[WLRZ], "]");
         char newFileName[256] = {0};
-        createUploadFilename(newFileName,
+        getUploadFilename(newFileName,
                              trapp.cfg.dataAcqSysType,
                              trapp.cfg.dataGenIden,
                              trapp.cfg.vendorOrgCode,
@@ -531,7 +542,7 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
     }
 }
 
-void add_list_search_file(const char *name,
+void add_list_search_file(char *name,
                           char *filter,
                           struct list_head *head)
 {
@@ -576,9 +587,25 @@ int upload_file_list(char *uploaddir, struct list_head *head)
 {
     struct list_head *pos, *q;
     FILE_LIST_T *tmp;
+    char localFile[1024] = {0};
+    char uploadFile[1024] = {0};
+    char fullpathFile[1024] = {0};
     list_for_each_safe(pos, q, head) {
         tmp = list_entry(pos, FILE_LIST_T, stList);
-        char fullpath[1024] = {0};
+
+        /* upload */
+        sprintf(localFile, "%s", tmp->localfilename);
+        sprintf(uploadFile, "%s", tmp->localfilename);
+        tr_ftp_upload(localFile, uploadFile, uploadDir, WLRZ,
+                      trapp.ftp_url, trapp.usr_key);
+        clear_file_buffer(localFile);
+        sprintf(uploadFile + strlen(uploadFile), "%s", ".ok");
+        tr_ftp_upload(localFile, uploadFile, NULL, log_type[WLRZ],
+                      trapp.ftp_url, trapp.usr_key);
+
+        /* rm file */
+        sprintf(fullpathFile, "%s""%s", trapp.dir_for_jsons, localFile);
+        remove(fullpathFile);
 
         free(tmp->localfilename);
         list_del(pos);
@@ -588,13 +615,7 @@ int upload_file_list(char *uploaddir, struct list_head *head)
     return 0;
 }
 
-void thread_call(char *uploaddir, struct list_head *head)
-{
-    add_list_search_file(trapp.dir_for_jsons, "001.log", head);
-    upload_file_list(uploaddir, head);
-}
-
-void createDir(char *dir, char *logType)
+void getUploadDir(char *dir, char *logType)
 {
     time_t t;
     struct tm *timeinfo;
@@ -611,6 +632,12 @@ void createDir(char *dir, char *logType)
             timeinfo->tm_hour, timeinfo->tm_min);
 }
 
+void thread_call(char *uploadDir, struct list_head *head)
+{
+    add_list_search_file(trapp.dir_for_jsons, "001.log", head);
+    upload_file_list(uploadDir, head);
+}
+
 /*
  * 这个线程为了ftp上报文件信息, ftp的异步太难了
  */
@@ -619,7 +646,7 @@ void *threadFunc(void *arg)
     struct timeval t;
     INIT_LIST_HEAD(&file_list_head.stList);
     char dir[1024] = {0};
-    createDir(dir, WLRZ);
+    getUploadDir(dir, WLRZ);
 
     while (1) {
         t.tv_sec = TIME_INTERVAL;
