@@ -20,6 +20,7 @@ const char *log_type[] = {
     "PTNR", "SGJZ", "CSZL", "CSZT", "SBZL",
     "JSJZT", "SBGJ", "RZSJ", "SJTZ", "PNFJ"
 };
+FILE_LIST_T file_list_head;
 
 
 /*
@@ -30,7 +31,6 @@ const char *log_type[] = {
 #define TIME_INTERVAL           60*5
 #define MAX_LOG_TYPE_NUM        15
 #define SAVE_FILE_DIR           "/tmp/"
-#define create_file(x)          clear_file_buffer(x)
 
 /*
  * 日志
@@ -48,6 +48,18 @@ void tr_log(int level, const char *fmt, ...)
     else
         vprintf(fmt, list);
     va_end(list);
+}
+
+/*
+ * 重命名文件
+ */
+void renameFile(char *dir, char *old, char *new)
+{
+    char fullpath_old[1024] = {0};
+    char fullpath_new[1024] = {0};
+    sprintf(fullpath_old, "%s%s", dir, old);
+    sprintf(fullpath_new, "%s%s", dir, new);
+    rename(old, new);
 }
 
 /*
@@ -506,9 +518,116 @@ void apmsg_recv_cb(evutil_socket_t fd, short what, void *arg)
 
     insert_file_buffer(log_type[WLRZ], json);
     if (trapp.count_wlrz >=10000) {
-        upload_json_cb(-1, -1, NULL);
+        insert_file_buffer(log_type[WLRZ], "]");
+        char newFileName[256] = {0};
+        createUploadFilename(newFileName,
+                             trapp.cfg.dataAcqSysType,
+                             trapp.cfg.dataGenIden,
+                             trapp.cfg.vendorOrgCode,
+                             WLRZ, "log");
+        renameFile(trapp.dir_for_jsons, log_type[WLRZ], newFileName);
+        //upload_json_cb(-1, -1, NULL);
         trapp.count_wlrz = 0;
     }
+}
+
+void add_list_search_file(const char *name,
+                          char *filter,
+                          struct list_head *head)
+{
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(name)))
+        return;
+    if (!(entry = readdir(dir)))
+        return;
+
+    do {
+        if (entry->d_type == DT_DIR) {
+            char path[1024];
+            int len = snprintf(path,
+                               sizeof(path)-1,
+                               "%s/%s", name, entry->d_name);
+            path[len] = 0;
+            if (strcmp(entry->d_name, ".") == 0 ||
+                strcmp(entry->d_name, "..") == 0)
+                continue;
+        } else {
+            if (strstr(entry->d_name, filter))
+                add_file_list(entry->d_name, head);
+        }
+    } while (entry = readdir(dir));
+    closedir(dir);
+}
+
+int add_file_list(char *filename, struct list_head *head)
+{
+    FILE_LIST_T *node;
+    node = (FILE_LIST_T*)malloc(sizeof(FILE_LIST_T));
+    memset(node, 0, sizeof(FILE_LIST_T));
+    node->localfilename = strdup(filename);
+    list_add(&(node->stList), head);
+
+    return 0;
+}
+
+int upload_file_list(char *uploaddir, struct list_head *head)
+{
+    struct list_head *pos, *q;
+    FILE_LIST_T *tmp;
+    list_for_each_safe(pos, q, head) {
+        tmp = list_entry(pos, FILE_LIST_T, stList);
+        char fullpath[1024] = {0};
+
+        free(tmp->localfilename);
+        list_del(pos);
+        free(tmp);
+    }
+
+    return 0;
+}
+
+void thread_call(char *uploaddir, struct list_head *head)
+{
+    add_list_search_file(trapp.dir_for_jsons, "001.log", head);
+    upload_file_list(uploaddir, head);
+}
+
+void createDir(char *dir, char *logType)
+{
+    time_t t;
+    struct tm *timeinfo;
+
+    t = time(NULL);
+    timeinfo = localtime(&t);
+
+    sprintf(dir,
+            "/%s/"
+            "%d%02d%02d/"
+            "%02d/%02d/",
+            logType,
+            timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday,
+            timeinfo->tm_hour, timeinfo->tm_min);
+}
+
+/*
+ * 这个线程为了ftp上报文件信息, ftp的异步太难了
+ */
+void *threadFunc(void *arg)
+{
+    struct timeval t;
+    INIT_LIST_HEAD(&file_list_head.stList);
+    char dir[1024] = {0};
+    createDir(dir, WLRZ);
+
+    while (1) {
+        t.tv_sec = TIME_INTERVAL;
+        t.tv_usec = 0;
+        select(0, NULL, NULL, NULL, &t);
+        thread_call(dir, &file_list_head.stList);
+    }
+    return 0;
 }
 
 /*
@@ -606,14 +725,18 @@ int main(int argc, char **argv)
                              apmsg_recv_cb, NULL);
     event_add(trapp.ev_udp, NULL);
 
+    /* 创建线程 */
+    pthread_t pth;
+    pthread_create(&pth, NULL, threadFunc, NULL);
+
     /* Every 5 minutes */
-    struct event *ev_timeout;
-    struct timeval tv;
-    ev_timeout = event_new(trapp.base, -1, EV_PERSIST | EV_TIMEOUT,
-                           upload_json_cb, NULL);
-    evutil_timerclear(&tv);
-    tv.tv_sec = TIME_INTERVAL;
-    event_add(ev_timeout, &tv);
+    /* struct event *ev_timeout; */
+    /* struct timeval tv; */
+    /* ev_timeout = event_new(trapp.base, -1, EV_PERSIST | EV_TIMEOUT, */
+    /*                        upload_json_cb, NULL); */
+    /* evutil_timerclear(&tv); */
+    /* tv.tv_sec = TIME_INTERVAL; */
+    /* event_add(ev_timeout, &tv); */
 
     event_base_dispatch(trapp.base);
 

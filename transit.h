@@ -3,15 +3,17 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
-#include <errno.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 
+#include "list.h"
 #include "event.h"
 #include "curl_ftp.h"
 #include "parson/parson.h"
@@ -58,6 +60,11 @@ extern void udpserver_init(int *sock, unsigned short port);
         ((unsigned char*)(x))[4],               \
         ((unsigned char*)(x))[5]
 #endif
+
+typedef struct {
+    char *localfilename;
+    struct list_head stList;
+}FILE_LIST_T;
 
 struct tr_app {
     struct event_base *base;
