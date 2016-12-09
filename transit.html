@@ -1,0 +1,461 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="cache-control" content="max-age=0" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <title></title>
+    <link href="/frameStyle.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="/left_menu.js"></script>
+    <script type="text/javascript" src="/top_menu.js"></script>
+    <script type="text/javascript" src="/outman.js"></script>
+    <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.3&key=aa4a48297242d22d2b3fd6eddfe62217"></script>
+    <script type="text/javascript" src="http://libs.baidu.com/jquery/1.9.1/jquery.min.js"></script>
+  </head>
+  <script type="text/javascript">
+    var i18nLanguage = "0";
+    var oem_company = "other";
+    var users_level= "1";
+    var result = "resultxxx";
+
+    function getTime(id) {
+      var d = new Date();
+      var dateFormat = d.getFullYear() + '-' + ("0" + (d.getMonth()+1)).slice(-2) + '-' + ("0" + d.getDate()).slice(-2)  + ' ' +
+                       ("0" + d.getHours()).slice(-2) + ':' + ("0" + d.getMinutes()).slice(-2) + ':' + ("0"+d.getSeconds()).slice(-2);
+      write_to_input(id, dateFormat);
+    }
+
+    function SBZL_delete (INDEX) {
+      document.getElementById("operate").value = "delete";
+      var tb = document.getElementById("sbzl_list");
+      LoadFile_SBZL(INDEX);
+      presubmit(document.SBZLSetup);
+      tb.deleteRow(INDEX+1);
+    }
+
+    function OnInit() {
+      LoadFile_CONFIG();
+      LoadFile_CSZL();
+      LoadFile_SBZL(0);
+      Showall_SBZL();
+      configResult(result, "<i18n:configsuccess>", "<i18n:configfailed>");
+      transit_id();
+      return;
+    }
+
+    function presubmit(f) {
+      if (false == check_int_range(document.getElementById("CONFIG_APPORT").value, 0, 65535, 10)){
+        alert("端口错误");
+        return;
+      }
+      var ipAndPort = document.getElementById("CONFIG_SERVER").value.split(":");
+      if (false == check_ipv4_addr(ipAndPort[0])){
+        alert("IP错误");
+        return;
+      }
+      if (false == check_int_range(ipAndPort[1], 0, 65535, 10)){
+        alert("端口错误");
+        return;
+      }
+      if (false == check_mac_addr(document.getElementById("SBZL_MAC").value, "-")) {
+        alert("MAC错误");
+        return;
+      }
+
+      f.submit();
+      return;
+    }
+  </script>
+
+  <body onload="OnInit();">
+    <div class="all">
+      <div class="left">
+        <img src="/logo.jpg" style="margin-top:40px;"/>
+        <div class="left_menu" >
+          <script>
+            $.ajaxSetup({async: false});
+            $.getJSON("/transit/CONFIG.js", function(data) {
+              $.each(data, function (key, val) {
+                if (key == "i18nLanguage") {i18nLanguage = val}
+                if (key == "oem_company") {oem_company = val}
+                if (key == "users_level") {users_level = val}
+              })
+            })
+            $.ajaxSetup({async: true});
+            left_menu(i18nLanguage);
+          </script>
+        </div>
+      </div>
+      <div class="right" >
+        <form name="CONFIGSetup" action="/transit.pl" method="post">
+          <input type="hidden" value="CONFIG" name="filetype">
+          <div class="inner"><span>启动配置</span> </div>
+          <div class="dotted_line" >
+            <table class="table" style="margin-left:260px;margin-top:5px;">
+              <tr>
+                <td style="width:180px;">汇聚开关</td>
+                <td>
+                  <select name="CONFIG_SWITCH" id="CONFIG_SWITCH" style="width:150px;">
+                    <option value="0">禁用</option>
+                    <option value="1">启用</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">汇聚端口号</td>
+                <td>
+                  <input type="text" name="CONFIG_APPORT" id="CONFIG_APPORT" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">FTP服务器地址</td>
+                <td>
+                  <input type="text" name="CONFIG_SERVER" id="CONFIG_SERVER" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">FTP用户名密码</td>
+                <td>
+                  <input type="text" name="CONFIG_USERKEY" id="CONFIG_USERKEY" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">日志暂存目录</td>
+                <td>
+                  <input type="text" name="CONFIG_DIR" id="CONFIG_DIR" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="display:none"">数据采集系统类型(111~143,999)</td>
+                <td>
+                  <input type="text" name="CONFIG_DataAcquisition" id="CONFIG_DataAcquisition" style="display:none">
+                </td>
+              </tr>
+            </table>
+            <div style="position:absolute;">
+              <input style="position:relative;height:20px;width:70px;bottom:1px;left:700px;"
+                     type="button" onclick="presubmit(document.CONFIGSetup);"
+                     name="dev_submit" id="submit_id" value="提交">
+            </div>
+          </div>
+        </form>
+        <br>
+        <br>
+        <form name="CSZLSetup" action="/transit.pl" method="post">
+          <input type="hidden" value="CSZL" name="filetype">
+          <div class="inner"><span>场所资料</span> </div>
+          <div class="dotted_line" >
+            <table class="table" style="margin-left:260px;margin-top:5px;">
+            <tr>
+              <td style="width:180px;">场所编码</td>
+              <td>
+                <input type="text" name="CSZL_SERVICE_CODE" id="CSZL_SERVICE_CODE" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所名称</td>
+              <td>
+                <input type="text" name="CSZL_SERVICE_NAME" id="CSZL_SERVICE_NAME" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所地址</td>
+              <td>
+                <input type="text" name="CSZL_ADDRESS" id="CSZL_ADDRESS" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所经营性质</td>
+              <td>
+                <select name="CSZL_BUSINESS_NATURE" id="CSZL_BUSINESS_NATURE" style="width:150px;">
+                  <option value="1">1. 经营</option>
+                  <option value="2">2. 非经营</option>
+                  <option value="3">3. 围栏采集</option>
+                  <option value="9">9. 其他</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所类型</td>
+              <td>
+                <select name="CSZL_SERVICE_TYPE" id="CSZL_SERVICE_TYPE" style="width:150px;">
+                  <option value="1">1. 旅游宾馆类</option>
+                  <option value="2">2. 图书馆阅览室</option>
+                  <option value="3">3. 电脑培训中心类</option>
+                  <option value="4">4. 娱乐场所类</option>
+                  <option value="5">5. 交通枢纽</option>
+                  <option value="6">6. 公共交通工具</option>
+                  <option value="7">7. 餐饮服务场所</option>
+                  <option value="8">8. 金融服务场所</option>
+                  <option value="A">A. 购物场所</option>
+                  <option value="B">B. 公共服务场所</option>
+                  <option value="C">C. 文化服务场所</option>
+                  <option value="D">D. 公共休闲场所</option>
+                  <option value="9">9. 其他</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">省编码</td>
+              <td>
+                <input type="text" name="CSZL_PROVINCE_CODE" id="CSZL_PROVINCE_CODE" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">城市编码</td>
+              <td>
+                <input type="text" name="CSZL_CITY_CODE" id="CSZL_CITY_CODE" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">区域编码</td>
+              <td>
+                <input type="text" name="CSZL_AREA_CODE" id="CSZL_AREA_CODE" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所地图经度</td>
+              <td>
+                <input type="text" name="CSZL_XPOINT" id="CSZL_XPOINT" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">场所地图维度</td>
+              <td>
+                <input type="text" name="CSZL_YPOINT" id="CSZL_YPOINT" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">安全厂商编码</td>
+              <td>
+                <input type="text" name="CSZL_TERMINAL_FACTORY_ORGCODE" id="CSZL_TERMINAL_FACTORY_ORGCODE" style="width:150px;">
+              </td>
+            </tr>
+            <tr>
+              <td style="width:180px;">安装时间</td>
+              <td>
+                <input type="text" name="CSZL_CREATE_TIME" id="CSZL_CREATE_TIME" style="width:150px;">
+                <input style="width:100px;" type="button" onclick="getTime('CSZL_CREATE_TIME')"
+                       name="gettime" id="gettime" value="获取当前时间">
+              </td>
+            </tr>
+            </table>
+            <div style="position:absolute;">
+              <input style="position:relative;height:20px;width:70px;bottom:1px;left:700px;"
+                     type="button" onclick="presubmit(document.CSZLSetup);"
+                     name="dev_submit" id="submit_id" value="提交">
+            </div>
+          </div>
+        </form>
+        <br>
+        <br>
+        <form name="SBZLSetup" action="/transit.pl" method="post">
+          <input type="hidden" id="filetype_id" value="SBZL" name="filetype">
+          <input type="hidden" id="operate" value="modify" name="operate">
+          <div class="inner"><span>设备资料</span> </div>
+          <div class="dotted_line" >
+
+            <table class="table" style="margin-left:260px;margin-top:5px;">
+              <tr>
+                <td style="width:180px;">设备名称</td>
+                <td>
+                  <input type="text" name="SBZL_EQUIPMENT_NAME" id="SBZL_EQUIPMENT_NAME" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">设备MAC</td>
+                <td>
+                  <input type="text" name="SBZL_MAC" id="SBZL_MAC"
+                         onchange="completenum('SBZL_MAC', 'SBZL_SECURITY_FACTORY_ORGCODE')"
+                         onblur="completenum('SBZL_MAC', 'SBZL_SECURITY_FACTORY_ORGCODE')" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">安全厂商编码</td>
+                <td>
+                  <input type="text" name="SBZL_SECURITY_FACTORY_ORGCODE" id="SBZL_SECURITY_FACTORY_ORGCODE"
+                         onchange="completenum('SBZL_MAC', 'SBZL_SECURITY_FACTORY_ORGCODE')"
+                         onblur="completenum('SBZL_MAC', 'SBZL_SECURITY_FACTORY_ORGCODE')" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">设备编号</td>
+                <td>
+                  <input type="text" name="SBZL_EQUIPMENT_NUM" id="SBZL_EQUIPMENT_NUM" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">场所编码</td>
+                <td>
+                  <input type="text" name="SBZL_SERVICE_CODE" id="SBZL_SERVICE_CODE" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">省编码</td>
+                <td>
+                  <input type="text" name="SBZL_PROVINCE_CODE" id="SBZL_PROVINCE_CODE" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">城市编码</td>
+                <td>
+                  <input type="text" name="SBZL_CITY_CODE" id="SBZL_CITY_CODE" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">区域编码</td>
+                <td>
+                  <input type="text" name="SBZL_AREA_CODE" id="SBZL_AREA_CODE" style="width:150px;">
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">设备类型</td>
+                <td>
+                  <select name="SBZL_EQUIPMENT_TYPE" id="SBZL_EQUIPMENT_TYPE" style="width:150px;">
+                    <option value="00">00. 固定AP</option>
+                    <option value="01">01. 移动AP</option>
+                    <option value="10">10. 固定围栏</option>
+                    <option value="11">11. 移动围栏</option>
+                    <option value="12">12. 单兵设备围栏</option>
+                    <option value="20">20. H系列</option>
+                    <option value="22">20. RT系列</option>
+                  </select>
+                </td>
+              </tr>
+              <tr>
+                <td style="width:180px;">创建时间</td>
+                <td>
+                  <input type="text" name="SBZL_CREATE_TIME" id="SBZL_CREATE_TIME" style="width:150px;">
+                  <input style="width:100px;" type="button" onclick="getTime('SBZL_CREATE_TIME')"
+                         name="gettime" id="gettime" value="获取当前时间">
+                </td>
+              </tr>
+            </table>
+            <div style="position:absolute;">
+              <input style="position:relative;height:20px;width:70px;bottom:1px;left:700px;"
+                     type="button" onclick="presubmit(document.SBZLSetup);"
+                     name="dev_submit" id="submit_id" value="提交">
+            </div>
+          </div>
+        </form>
+        <br><br>
+        <table id="sbzl_list" style="width:900px;">
+          <tr>
+            <td align="center" style="width:10%">序号</td>
+              <td align="center" style="width:20%">设备名称</td>
+                <td align="center" style="width:20%">设备MAC</td>
+                  <td align="center" style="width:5%"></td>
+                  <td align="center" style="width:5%"></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
+
+<script type="text/javascript">
+  function LoadFile_CONFIG () {
+    $.getJSON("/transit/CONFIG.js", function(data) {
+      $.each(data, function (key, val) {
+        if (key == "SWITCH") {select_to_selected("CONFIG_SWITCH", val)}
+        if (key == "APPORT") {write_to_input("CONFIG_APPORT", val)}
+        if (key == "SERVER") {write_to_input("CONFIG_SERVER", val)}
+        if (key == "USERKEY") {write_to_input("CONFIG_USERKEY", val)}
+        if (key == "DIR") {write_to_input("CONFIG_DIR", val)}
+        if (key == "DataAcquisition") {write_to_input("CONFIG_DataAcquisition", val)}
+        if (key == "i18nLanguage") {i18nLanguage = val}
+        if (key == "oem_company") {oem_company = val}
+        if (key == "users_level") {users_level = val}
+      })
+    })
+  }
+
+  function LoadFile_CSZL () {
+    $.getJSON("/transit/CSZL.js", function(array) {
+      $.each(array[0], function (key, val) {
+        if (key == "SERVICE_CODE") {write_to_input("CSZL_SERVICE_CODE", val)}
+        if (key == "SERVICE_NAME") {write_to_input("CSZL_SERVICE_NAME", val)}
+        if (key == "ADDRESS") {write_to_input("CSZL_ADDRESS", val)}
+        if (key == "BUSINESS_NATURE") {write_to_input("CSZL_BUSINESS_NATURE", val)}
+        if (key == "PROVINCE_CODE") {write_to_input("CSZL_PROVINCE_CODE", val)}
+        if (key == "CITY_CODE") {write_to_input("CSZL_CITY_CODE", val)}
+        if (key == "AREA_CODE") {write_to_input("CSZL_AREA_CODE", val)}
+        if (key == "XPOINT") {write_to_input("CSZL_XPOINT", val)}
+        if (key == "YPOINT") {write_to_input("CSZL_YPOINT", val)}
+        if (key == "TERMINAL_FACTORY_ORGCODE") {write_to_input("CSZL_TERMINAL_FACTORY_ORGCODE", val)}
+        if (key == "CREATE_TIME") {write_to_input("CSZL_CREATE_TIME", val)}
+      })
+    })
+  }
+
+  function LoadFile_SBZL (INDEX) {
+    $.getJSON("/transit/SBZL.js", function(array) {
+      $.each(array[INDEX], function (key, val) {
+        if (key == "EQUIPMENT_NAME") {write_to_input("SBZL_EQUIPMENT_NAME", val)}
+        if (key == "MAC") {write_to_input("SBZL_MAC", val)}
+        if (key == "SECURITY_FACTORY_ORGCODE") {write_to_input("SBZL_SECURITY_FACTORY_ORGCODE", val)}
+        if (key == "EQUIPMENT_NUM") {write_to_input("SBZL_EQUIPMENT_NUM", val)}
+        if (key == "SERVICE_CODE") {write_to_input("SBZL_SERVICE_CODE", val)}
+        if (key == "PROVINCE_CODE") {write_to_input("SBZL_PROVINCE_CODE", val)}
+        if (key == "CITY_CODE") {write_to_input("SBZL_CITY_CODE", val)}
+        if (key == "AREA_CODE") {write_to_input("SBZL_AREA_CODE", val)}
+        if (key == "EQUIPMENT_TYPE") {write_to_input("SBZL_EQUIPMENT_TYPE", val)}
+        if (key == "CREATE_TIME") {write_to_input("SBZL_CREATE_TIME", val)}
+      })
+    })
+  }
+
+  function Showall_SBZL() {
+    $.getJSON("/transit/SBZL.js", function(array) {
+      var length_SBZL = array.length;
+      for (var i = 0; i < length_SBZL; i ++) {
+        var tb = document.getElementById("sbzl_list");
+        var tb_row = tb.insertRow(tb.rows.length);
+        tb_row.align="center";
+        tb_row.insertCell(0).innerHTML= i;
+        tb_row.insertCell(1).innerHTML= array[i].EQUIPMENT_NAME;
+        tb_row.insertCell(2).innerHTML= array[i].MAC;
+        tb_row.insertCell(3).innerHTML= '<input type="button" onclick="LoadFile_SBZL('+ i +');" id="sbzl_config_id" value="配置">';
+        tb_row.insertCell(4).innerHTML= '<input type="button" onclick="SBZL_delete('+ i +');" id="sbzl_config_id" value="删除">';
+      }
+    })
+  }
+
+  AMap.plugin('AMap.Geocoder',function(){
+    var geocoder = new AMap.Geocoder({
+      city: ""
+    });
+    var input = document.getElementById('CSZL_ADDRESS');
+    input.onchange = function(e){
+      var address = input.value;
+      geocoder.getLocation(address, function(status, res){
+        if(status=='complete' && res.geocodes.length){
+          document.getElementById('CSZL_XPOINT').value = res.geocodes[0].location.lng
+          document.getElementById('CSZL_YPOINT').value = res.geocodes[0].location.lat
+          document.getElementById('CSZL_AREA_CODE').value = res.geocodes[0].adcode
+          var tmpCode = res.geocodes[0].adcode;
+          var provinceCode = tmpCode.substring(0,2) + "0000";
+          document.getElementById('CSZL_PROVINCE_CODE').value = provinceCode;
+          var cityCode = tmpCode.substring(0,4) + "00";
+          document.getElementById('CSZL_CITY_CODE').value = cityCode;
+        } else {
+          document.getElementById('CSZL_XPOINT').value = status
+          document.getElementById('CSZL_YPOINT').value = res
+          document.getElementById('CSZL_AREA_CODE').value = status
+        }
+      })
+    }
+    input.onchange();
+  });
+
+  function completenum(MAC, SEC) {
+    var x = document.getElementById(MAC).value;
+    x = x.replace(/-/g, "");
+
+    var y = document.getElementById(SEC).value;
+    document.getElementById('SBZL_EQUIPMENT_NUM').value = y + x;
+  }
+</script>
