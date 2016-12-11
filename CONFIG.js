@@ -1,8 +1,8 @@
 {
-    "SWITCH": 0,
-    "APPORT": "6666",
-    "SERVER": "127.0.0.1:21",
-    "USERKEY": "root:123456",
+    "SWITCH": "0",
+    "APPORT": "123",
+    "SERVER": "127.0.0.1:22",
+    "USERKEY": "fabius8:123",
     "DIR": "/tmp/transit/",
     "DataAcquisition": "111",
     "i18nLanguage": "0",

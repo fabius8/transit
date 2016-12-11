@@ -13,6 +13,7 @@ my $HTML_FILE = "transit.html";
 my $referer = $ENV{'HTTP_REFERER'};
 my $method = $ENV{'REQUEST_METHOD'};
 
+# URL must be Decode
 sub URLDecode {
     my $theURL = $_[0];
     chomp($theURL);
@@ -38,6 +39,9 @@ sub getValueFromArray {
 sub replaceNumInFile {
     my $name = $_[0];
     my $value = $_[1];
+    if ($value eq "") {
+        return;
+    }
     my $filename = $_[2];
     my $line;
     open($FILE, "<", $filename);
@@ -56,6 +60,9 @@ sub replaceNumInFile {
 sub replaceStrInFile {
     my $name = $_[0];
     my $value = $_[1];
+    if ($value eq "") {
+        return;
+    }
     my $filename = $_[2];
     my $line;
     open($FILE, "<", $filename);
@@ -86,8 +93,23 @@ sub existMacInFile {
     return 0;
 }
 
-sub setJsonFromNvram {
-    
+sub NvramGet {
+    my $nvram_key = $_[0];
+    my $json_file = $_[1];
+    (my $json_key = $nvram_key) =~ s/CONFIG_//s;
+    my $value = `nvramcli get $nvram_key`;
+    $value =~ s/^$nvram_key=(.*)\n/$1/s;
+    replaceStrInFile($json_key, $value, $json_file);
+}
+
+# Load Nvram to CONFIG.js
+sub LoadNvramToCONFIGjs {
+    NvramGet("CONFIG_SWITCH", $CONFIG_FILE);
+    NvramGet("CONFIG_APPORT", $CONFIG_FILE);
+    NvramGet("CONFIG_SERVER", $CONFIG_FILE);
+    NvramGet("CONFIG_USERKEY", $CONFIG_FILE);
+    NvramGet("CONFIG_DIR", $CONFIG_FILE);
+    NvramGet("CONFIG_DataAcquisition", $CONFIG_FILE);
 }
 
 # 处理GET请求, 第一次点击页面, 需将NVRAM结果写入配置文件
@@ -95,12 +117,12 @@ if ($method =~ /GET/) {
     $query_string = $ENV{'QUERY_STRING'};
     $decode = URLDecode($query_string);
     @paraArr = split(/&/, $decode);
-    my $lang = getValueFromArray("lang", @paraArr);
-    replaceStrInFile("i18nLanguage", $lang, $CONFIG_FILE);
+    my $i18nLanguage = getValueFromArray("i18nLanguage", @paraArr);
+    replaceStrInFile("i18nLanguage", $i18nLanguage, $CONFIG_FILE);
     open($FILE, "<", $HTML_FILE);
     my $data = do { local $/; <$FILE> };
     close $FILE;
-    setJsonFromNvram();
+    LoadNvramToCONFIGjs();
 
     print "Content-type:text/html\r\n\r\n";
     print $data;
@@ -118,17 +140,23 @@ $operate = getValueFromArray("operate", @paraArr);
 
 if ($filetype =~ "CONFIG") {
     my $CONFIG_SWITCH = getValueFromArray("CONFIG_SWITCH", @paraArr);
-    replaceNumInFile("SWITCH", $CONFIG_SWITCH, $CONFIG_FILE);
+    replaceStrInFile("SWITCH", $CONFIG_SWITCH, $CONFIG_FILE);
+    `nvramcli set CONFIG_SWITCH="$CONFIG_SWITCH"`;
     my $CONFIG_APPORT = getValueFromArray("CONFIG_APPORT", @paraArr);
     replaceStrInFile("APPORT", $CONFIG_APPORT, $CONFIG_FILE);
+    `nvramcli set CONFIG_APPORT="$CONFIG_APPORT"`;
     my $CONFIG_SERVER = getValueFromArray("CONFIG_SERVER", @paraArr);
     replaceStrInFile("SERVER", $CONFIG_SERVER, $CONFIG_FILE);
+    `nvramcli set CONFIG_SERVER="$CONFIG_SERVER"`;
     my $CONFIG_USERKEY = getValueFromArray("CONFIG_USERKEY", @paraArr);
     replaceStrInFile("USERKEY", $CONFIG_USERKEY, $CONFIG_FILE);
+    `nvramcli set CONFIG_USERKEY="$CONFIG_USERKEY"`;
     my $CONFIG_DIR = getValueFromArray("CONFIG_DIR", @paraArr);
     replaceStrInFile("DIR", $CONFIG_DIR, $CONFIG_FILE);
+    `nvramcli set CONFIG_DIR="$CONFIG_DIR"`;
     my $CONFIG_DataAcquisition = getValueFromArray("CONFIG_DataAcquisition", @paraArr);
     replaceStrInFile("DataAcquisition", $CONFIG_DataAcquisition, $CONFIG_FILE);
+    `nvramcli set CONFIG_DataAcquisition="$CONFIG_DataAcquisition"`;
 }
 
 if ($filetype =~ "CSZL") {
@@ -141,7 +169,7 @@ if ($filetype =~ "CSZL") {
     my $CSZL_BUSINESS_NATURE = getValueFromArray("CSZL_BUSINESS_NATURE", @paraArr);
     replaceStrInFile("BUSINESS_NATURE", $CSZL_BUSINESS_NATURE, $CSZL_FILE);
     my $CSZL_SERVICE_TYPE = getValueFromArray("CSZL_SERVICE_TYPE", @paraArr);
-    replaceNumInFile("SERVICE_TYPE", $CSZL_SERVICE_TYPE, $CSZL_FILE);
+    replaceStrInFile("SERVICE_TYPE", $CSZL_SERVICE_TYPE, $CSZL_FILE);
     my $CSZL_PROVINCE_CODE = getValueFromArray("CSZL_PROVINCE_CODE", @paraArr);
     replaceStrInFile("PROVINCE_CODE", $CSZL_PROVINCE_CODE, $CSZL_FILE);
     my $CSZL_CITY_CODE = getValueFromArray("CSZL_CITY_CODE", @paraArr);

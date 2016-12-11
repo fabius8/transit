@@ -13,13 +13,12 @@
     <script type="text/javascript" src="/top_menu.js"></script>
     <script type="text/javascript" src="/outman.js"></script>
     <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.3&key=aa4a48297242d22d2b3fd6eddfe62217"></script>
-    <script type="text/javascript" src="http://libs.baidu.com/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
   </head>
   <script type="text/javascript">
-    var i18nLanguage = "0";
+    var i18nLanguage;
     var oem_company = "other";
     var users_level= "1";
-    var result = "resultxxx";
 
     function getTime(id) {
       var d = new Date();
@@ -37,11 +36,11 @@
     }
 
     function OnInit() {
+      $.ajaxSetup({ cache:false });
       LoadFile_CONFIG();
       LoadFile_CSZL();
       LoadFile_SBZL(0);
       Showall_SBZL();
-      configResult(result, "<i18n:configsuccess>", "<i18n:configfailed>");
       transit_id();
       return;
     }
@@ -76,7 +75,7 @@
         <img src="/logo.jpg" style="margin-top:40px;"/>
         <div class="left_menu" >
           <script>
-            $.ajaxSetup({async: false});
+            $.ajaxSetup({ async: false, cache:false });
             $.getJSON("/transit/CONFIG.js", function(data) {
               $.each(data, function (key, val) {
                 if (key == "i18nLanguage") {i18nLanguage = val}
@@ -84,7 +83,7 @@
                 if (key == "users_level") {users_level = val}
               })
             })
-            $.ajaxSetup({async: true});
+            $.ajaxSetup({ async: true, cache:false });
             left_menu(i18nLanguage);
           </script>
         </div>
@@ -92,7 +91,7 @@
       <div class="right" >
         <form name="CONFIGSetup" action="/transit.pl" method="post">
           <input type="hidden" value="CONFIG" name="filetype">
-          <div class="inner"><span>启动配置</span> </div>
+          <div class="inner" ><span>启动配置</span> </div>
           <div class="dotted_line" >
             <table class="table" style="margin-left:260px;margin-top:5px;">
               <tr>
@@ -379,7 +378,8 @@
         if (key == "SERVICE_CODE") {write_to_input("CSZL_SERVICE_CODE", val)}
         if (key == "SERVICE_NAME") {write_to_input("CSZL_SERVICE_NAME", val)}
         if (key == "ADDRESS") {write_to_input("CSZL_ADDRESS", val)}
-        if (key == "BUSINESS_NATURE") {write_to_input("CSZL_BUSINESS_NATURE", val)}
+        if (key == "BUSINESS_NATURE") {select_to_selected("CSZL_BUSINESS_NATURE", val)}
+        if (key == "SERVICE_TYPE") {select_to_selected("CSZL_SERVICE_TYPE", val)}
         if (key == "PROVINCE_CODE") {write_to_input("CSZL_PROVINCE_CODE", val)}
         if (key == "CITY_CODE") {write_to_input("CSZL_CITY_CODE", val)}
         if (key == "AREA_CODE") {write_to_input("CSZL_AREA_CODE", val)}
@@ -402,7 +402,7 @@
         if (key == "PROVINCE_CODE") {write_to_input("SBZL_PROVINCE_CODE", val)}
         if (key == "CITY_CODE") {write_to_input("SBZL_CITY_CODE", val)}
         if (key == "AREA_CODE") {write_to_input("SBZL_AREA_CODE", val)}
-        if (key == "EQUIPMENT_TYPE") {write_to_input("SBZL_EQUIPMENT_TYPE", val)}
+        if (key == "EQUIPMENT_TYPE") {select_to_selected("SBZL_EQUIPMENT_TYPE", val)}
         if (key == "CREATE_TIME") {write_to_input("SBZL_CREATE_TIME", val)}
       })
     })
@@ -453,7 +453,8 @@
 
   function completenum(MAC, SEC) {
     var x = document.getElementById(MAC).value;
-    x = x.replace(/-/g, "");
+    document.getElementById(MAC).value = x.toUpperCase();
+    x = x.replace(/-/g, "").toUpperCase();
 
     var y = document.getElementById(SEC).value;
     document.getElementById('SBZL_EQUIPMENT_NUM').value = y + x;
