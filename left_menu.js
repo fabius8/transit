@@ -769,9 +769,9 @@ function write_to_second_br(href, id, info)
 	return;
 }
 
-function write_to_second_br_pl(href, id, info, lang)
+function write_to_second_br_pl(href, id, info, language)
 {
-    document.write('<a href="/transit.pl?lang='+lang+'&cgimodule='+href+'" id="'+id+'">&nbsp;&nbsp;&nbsp;&nbsp;'+info+'</a></br></br>');
+    document.write('<a href="/transit.pl?i18nLanguage='+language+'&cgimodule='+href+'" id="'+id+'">&nbsp;&nbsp;&nbsp;&nbsp;'+info+'</a></br></br>');
     return;
 }
 
