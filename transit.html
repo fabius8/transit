@@ -13,8 +13,8 @@
     <script type="text/javascript" src="/top_menu.js"></script>
     <script type="text/javascript" src="/outman.js"></script>
     <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.3&key=aa4a48297242d22d2b3fd6eddfe62217"></script>
-    <script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
-    <script type="text/javascript" src="http://apps.bdimg.com/libs/jquery-i18n/1.1.1/jquery.i18n.min.js"></script>
+    <script type="text/javascript" src="/jquery.min.js"></script>
+    <script type="text/javascript" src="/jquery.i18n.min.js"></script>
   </head>
   <script type="text/javascript">
     var i18nLanguage = "0";
@@ -31,6 +31,11 @@
     function SBZL_delete (INDEX) {
       document.getElementById("operate").value = "delete";
       var tb = document.getElementById("sbzl_list");
+      var rowlength = tb.rows.length - 1;
+      if (rowlength == 1) {
+        alert("至少存在一个记录");
+        return;
+      }
       LoadFile_SBZL(INDEX);
       presubmit(document.SBZLSetup);
       tb.deleteRow(INDEX+1);
@@ -352,6 +357,8 @@
                   <td align="center" style="width:5%"></td>
           </tr>
         </table>
+        <hr />
+        <p>注意: 以上配置重启生效<p/>
       </div>
     </div>
   </body>
@@ -394,6 +401,7 @@
   }
 
   function LoadFile_SBZL (INDEX) {
+    $.ajaxSetup({ async: false, cache:false });
     $.getJSON("/transit/SBZL.js", function(array) {
       $.each(array[INDEX], function (key, val) {
         if (key == "EQUIPMENT_NAME") {write_to_input("SBZL_EQUIPMENT_NAME", val)}
@@ -408,6 +416,7 @@
         if (key == "CREATE_TIME") {write_to_input("SBZL_CREATE_TIME", val)}
       })
     })
+    $.ajaxSetup({ async: true, cache:false });
   }
 
   function Showall_SBZL() {
