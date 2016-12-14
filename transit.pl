@@ -93,15 +93,6 @@ sub existMacInFile {
     return 0;
 }
 
-sub NvramGet {
-    my $nvram_key = $_[0];
-    my $json_file = $_[1];
-    (my $json_key = $nvram_key) =~ s/CONFIG_//s;
-    my $value = `nvramcli get $nvram_key`;
-    $value =~ s/^$nvram_key=(.*)\n/$1/s;
-    replaceStrInFile($json_key, $value, $json_file);
-}
-
 # 处理GET请求, 第一次点击页面, 需将NVRAM结果写入配置文件
 if ($method =~ /GET/) {
     $query_string = $ENV{'QUERY_STRING'};
@@ -126,8 +117,7 @@ $decode = URLDecode($query_string);
 # 处理文件上传
 if ($file_upload_data =~ "filename=\"SBZL.js\"") {
     $file_upload_data =~ s/.*(\[\n.*\]\n).*/$1/s;
-    my $targetfile = "transit/SBZL.js.bak";
-    open($FILE, ">", $targetfile);
+    open($FILE, ">", $SBZL_FILE);
     print $FILE $file_upload_data;
     close $FILE;
     goto HOME;
@@ -142,22 +132,16 @@ $operate = getValueFromArray("operate", @paraArr);
 if ($filetype =~ "CONFIG") {
     my $CONFIG_SWITCH = getValueFromArray("CONFIG_SWITCH", @paraArr);
     replaceStrInFile("SWITCH", $CONFIG_SWITCH, $CONFIG_FILE);
-    `nvramcli set CONFIG_SWITCH="$CONFIG_SWITCH"`;
     my $CONFIG_APPORT = getValueFromArray("CONFIG_APPORT", @paraArr);
     replaceStrInFile("APPORT", $CONFIG_APPORT, $CONFIG_FILE);
-    `nvramcli set CONFIG_APPORT="$CONFIG_APPORT"`;
     my $CONFIG_SERVER = getValueFromArray("CONFIG_SERVER", @paraArr);
     replaceStrInFile("SERVER", $CONFIG_SERVER, $CONFIG_FILE);
-    `nvramcli set CONFIG_SERVER="$CONFIG_SERVER"`;
     my $CONFIG_USERKEY = getValueFromArray("CONFIG_USERKEY", @paraArr);
     replaceStrInFile("USERKEY", $CONFIG_USERKEY, $CONFIG_FILE);
-    `nvramcli set CONFIG_USERKEY="$CONFIG_USERKEY"`;
     my $CONFIG_DIR = getValueFromArray("CONFIG_DIR", @paraArr);
     replaceStrInFile("DIR", $CONFIG_DIR, $CONFIG_FILE);
-    `nvramcli set CONFIG_DIR="$CONFIG_DIR"`;
     my $CONFIG_DataAcquisition = getValueFromArray("CONFIG_DataAcquisition", @paraArr);
     replaceStrInFile("DataAcquisition", $CONFIG_DataAcquisition, $CONFIG_FILE);
-    `nvramcli set CONFIG_DataAcquisition="$CONFIG_DataAcquisition"`;
 }
 
 if ($filetype =~ "CSZL") {
