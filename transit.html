@@ -258,11 +258,19 @@
         </form>
         <br>
         <br>
-        <form name="SBZLSetup" action="/transit.pl" method="post">
-          <input type="hidden" id="filetype_id" value="SBZL" name="filetype">
-          <input type="hidden" id="operate" value="modify" name="operate">
-          <div class="inner"><span id="span3">设备资料</span> </div>
-          <div class="dotted_line" >
+
+        <div class="inner"><span id="span3">设备资料</span> </div>
+        <div class="dotted_line" >
+          <br />
+          <a align="center" href="/transit/SBZL.js" download>下载备份</a>
+          <form method="post" action="/transit.pl" name="submit" enctype="multipart/form-data">
+            <br />
+            <input align="center" type="file" name="SBZL.js"><br /><br />
+            <input style="width:78px;"  type="submit" name="submit" value="信息导入">
+          </form>
+          <form name="SBZLSetup" action="/transit.pl" method="post">
+            <input type="hidden" id="filetype_id" value="SBZL" name="filetype">
+            <input type="hidden" id="operate" value="modify" name="operate">
 
             <table class="table" style="margin-left:260px;margin-top:5px;">
               <tr>

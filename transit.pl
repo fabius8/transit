@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-my ($FILE,  @paraArr, $filetype, $operate);
+my ($FILE,  @paraArr, $filetype, $operate, $file_upload_data);
 my $query_string;
 my $decode;
 my $CONFIG_FILE = "transit/CONFIG.js";
@@ -102,16 +102,6 @@ sub NvramGet {
     replaceStrInFile($json_key, $value, $json_file);
 }
 
-# Load Nvram to CONFIG.js
-sub LoadNvramToCONFIGjs {
-    NvramGet("CONFIG_SWITCH", $CONFIG_FILE);
-    NvramGet("CONFIG_APPORT", $CONFIG_FILE);
-    NvramGet("CONFIG_SERVER", $CONFIG_FILE);
-    NvramGet("CONFIG_USERKEY", $CONFIG_FILE);
-    NvramGet("CONFIG_DIR", $CONFIG_FILE);
-    NvramGet("CONFIG_DataAcquisition", $CONFIG_FILE);
-}
-
 # 处理GET请求, 第一次点击页面, 需将NVRAM结果写入配置文件
 if ($method =~ /GET/) {
     $query_string = $ENV{'QUERY_STRING'};
@@ -122,17 +112,28 @@ if ($method =~ /GET/) {
     open($FILE, "<", $HTML_FILE);
     my $data = do { local $/; <$FILE> };
     close $FILE;
-    LoadNvramToCONFIGjs();
 
     print "Content-type:text/html\r\n\r\n";
     print $data;
     goto END;
 } else {
     $query_string = <STDIN>;
+    $file_upload_data = do { local $/; <STDIN> };
+}
+
+$decode = URLDecode($query_string);
+
+# 处理文件上传
+if ($file_upload_data =~ "filename=\"SBZL.js\"") {
+    $file_upload_data =~ s/.*(\[\n.*\]\n).*/$1/s;
+    my $targetfile = "transit/SBZL.js.bak";
+    open($FILE, ">", $targetfile);
+    print $FILE $file_upload_data;
+    close $FILE;
+    goto HOME;
 }
 
 # 处理POST请求
-$decode = URLDecode($query_string);
 @paraArr = split(/&/, $decode);
 
 $filetype = getValueFromArray("filetype", @paraArr);
@@ -297,6 +298,7 @@ if ($filetype =~ "CONFIG") {
     }
 }
 
-print "Location: $referer\n\n";
+ HOME:
+    print "Location: $referer\n\n";
 
  END:
